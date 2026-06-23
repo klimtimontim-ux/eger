@@ -4,57 +4,49 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 const webpush = require('web-push');
 
-// ─── VAPID ───────────────────────────────────────────────
-// Генерируй один раз: node -e "require('web-push').generateVAPIDKeys().then(k=>console.log(JSON.stringify(k)))"
-// Вставь сюда свои ключи:
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE;
+
 webpush.setVapidDetails('mailto:test@example.com', VAPID_PUBLIC, VAPID_PRIVATE);
 
 // ─── Хранилище ────────────────────────────────────────────
 const users = {};         // { username: password }
-const messages = [];      // [ { from, text, time } ]
+const messages = {};      // { 'user1:user2': [ {from, text, time} ] }
 const subscriptions = {}; // { username: pushSubscription }
 
-// ─── HTTP сервер ──────────────────────────────────────────
+function chatKey(a, b) {
+  return [a, b].sort().join(':');
+}
+
+// ─── HTTP ─────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
-  // Отдаём статику
   if (req.method === 'GET' && req.url === '/') {
-    serveFile(res, 'index.html', 'text/html');
-    return;
+    serveFile(res, 'index.html', 'text/html'); return;
   }
   if (req.method === 'GET' && req.url === '/sw.js') {
-    serveFile(res, 'sw.js', 'application/javascript');
-    return;
+    serveFile(res, 'sw.js', 'application/javascript'); return;
   }
-
-  // VAPID public key для клиента
   if (req.method === 'GET' && req.url === '/vapid-public-key') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ key: VAPID_PUBLIC }));
-    return;
+    res.end(JSON.stringify({ key: VAPID_PUBLIC })); return;
   }
-
-  res.writeHead(404);
-  res.end('Not found');
+  res.writeHead(404); res.end('Not found');
 });
 
 function serveFile(res, filename, mime) {
   const filePath = path.join(__dirname, filename);
-  if (!fs.existsSync(filePath)) {
-    res.writeHead(404);
-    res.end('File not found: ' + filename);
-    return;
-  }
+  if (!fs.existsSync(filePath)) { res.writeHead(404); res.end('Not found'); return; }
   res.writeHead(200, { 'Content-Type': mime });
   res.end(fs.readFileSync(filePath));
 }
 
 // ─── WebSocket ────────────────────────────────────────────
 const wss = new WebSocketServer({ server });
-const clients = new Map(); // ws → username
+const clients = new Map(); // username → ws
 
 wss.on('connection', (ws) => {
+  let myName = null;
+
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
@@ -63,72 +55,99 @@ wss.on('connection', (ws) => {
 
       case 'register': {
         const { username, password } = msg;
-        if (!username || !password) return ws.send(j({ type: 'error', text: 'Заполни все поля' }));
-        if (users[username]) return ws.send(j({ type: 'error', text: 'Имя занято' }));
+        if (!username || !password) return send(ws, { type: 'error', text: 'Заполни все поля' });
+        if (users[username]) return send(ws, { type: 'error', text: 'Имя занято' });
         users[username] = password;
-        clients.set(ws, username);
-        ws.send(j({ type: 'auth_ok', username, messages }));
+        myName = username;
+        clients.set(username, ws);
+        send(ws, { type: 'auth_ok', username });
+        broadcastUsers();
         break;
       }
 
       case 'login': {
         const { username, password } = msg;
-        if (users[username] !== password) return ws.send(j({ type: 'error', text: 'Неверные данные' }));
-        clients.set(ws, username);
-        ws.send(j({ type: 'auth_ok', username, messages }));
+        if (users[username] !== password) return send(ws, { type: 'error', text: 'Неверные данные' });
+        myName = username;
+        clients.set(username, ws);
+        send(ws, { type: 'auth_ok', username });
+        broadcastUsers();
+        break;
+      }
+
+      case 'get_history': {
+        const { with: other } = msg;
+        const key = chatKey(myName, other);
+        send(ws, { type: 'history', with: other, messages: messages[key] || [] });
         break;
       }
 
       case 'message': {
-        const from = clients.get(ws);
-        if (!from) return;
-        const entry = { from, text: msg.text, time: now() };
-        messages.push(entry);
-        if (messages.length > 200) messages.shift();
-        // Шлём всем подключённым
-        broadcast({ type: 'message', ...entry });
-        // Push-уведомления всем остальным
-        sendPushToAll(from, entry.text);
+        if (!myName) return;
+        const { to, text } = msg;
+        const key = chatKey(myName, to);
+        if (!messages[key]) messages[key] = [];
+        const entry = { from: myName, text, time: now() };
+        messages[key].push(entry);
+        if (messages[key].length > 500) messages[key].shift();
+
+        send(ws, { type: 'message', with: to, ...entry });
+
+        const toWs = clients.get(to);
+        if (toWs && toWs.readyState === 1) {
+          send(toWs, { type: 'message', with: myName, ...entry });
+        }
+
+        sendPush(to, myName, text);
         break;
       }
 
       case 'subscribe': {
-        const username = clients.get(ws);
-        if (!username) return;
-        subscriptions[username] = msg.subscription;
-        console.log(`[push] ${username} подписался на уведомления`);
+        if (!myName) return;
+        subscriptions[myName] = msg.subscription;
         break;
       }
     }
   });
 
-  ws.on('close', () => clients.delete(ws));
+  ws.on('close', () => {
+    if (myName) {
+      clients.delete(myName);
+      broadcastUsers();
+      myName = null;
+    }
+  });
 });
 
-function broadcast(obj) {
-  const data = j(obj);
-  for (const [ws] of clients) {
-    if (ws.readyState === 1) ws.send(data);
+function send(ws, obj) {
+  if (ws.readyState === 1) ws.send(JSON.stringify(obj));
+}
+
+function broadcastUsers() {
+  const online = [...clients.keys()];
+  const allUsers = Object.keys(users);
+  const payload = JSON.stringify({ type: 'users', online, all: allUsers });
+  for (const [, ws] of clients) {
+    if (ws.readyState === 1) ws.send(payload);
   }
 }
 
-async function sendPushToAll(senderName, text) {
-  const payload = JSON.stringify({ title: 'Егерь', body: `${senderName}: ${text}` });
-  for (const [username, sub] of Object.entries(subscriptions)) {
-    if (username === senderName) continue; // себе не шлём
-    try {
-      await webpush.sendNotification(sub, payload);
-    } catch (e) {
-      console.warn(`[push] Ошибка для ${username}:`, e.statusCode);
-      if (e.statusCode === 410) delete subscriptions[username]; // подписка истекла
-    }
+async function sendPush(to, from, text) {
+  const sub = subscriptions[to];
+  if (!sub) return;
+  try {
+    await webpush.sendNotification(sub, JSON.stringify({
+      title: `Егерь — ${from}`,
+      body: text
+    }));
+  } catch (e) {
+    if (e.statusCode === 410) delete subscriptions[to];
   }
 }
 
-function j(obj) { return JSON.stringify(obj); }
 function now() {
   const d = new Date();
   return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
 }
 
-server.listen(3000, () => console.log('✅ Сервер запущен: http://localhost:3000'));
+server.listen(process.env.PORT || 3000, () => console.log('✅ Сервер запущен'));
