@@ -134,13 +134,16 @@ function broadcastUsers() {
 
 async function sendPush(to, from, text) {
   const sub = subscriptions[to];
+  console.log(`[push] to=${to} sub=${sub ? 'есть' : 'НЕТ'}`);
   if (!sub) return;
   try {
     await webpush.sendNotification(sub, JSON.stringify({
       title: `Егерь — ${from}`,
       body: text
     }));
+    console.log(`[push] отправлен ${to}`);
   } catch (e) {
+    console.log(`[push] ошибка ${to}:`, e.statusCode, e.message);
     if (e.statusCode === 410) delete subscriptions[to];
   }
 }
