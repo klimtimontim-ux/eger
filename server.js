@@ -7,9 +7,8 @@ const webpush = require('web-push');
 // ─── VAPID ───────────────────────────────────────────────
 // Генерируй один раз: node -e "require('web-push').generateVAPIDKeys().then(k=>console.log(JSON.stringify(k)))"
 // Вставь сюда свои ключи:
-const VAPID_PUBLIC  = 'ВСТАВЬ_СВОЙ_PUBLIC_KEY';
-const VAPID_PRIVATE = 'ВСТАВЬ_СВОЙ_PRIVATE_KEY';
-
+const VAPID_PUBLIC  = process.env.VAPID_PUBLIC;
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE;
 webpush.setVapidDetails('mailto:test@example.com', VAPID_PUBLIC, VAPID_PRIVATE);
 
 // ─── Хранилище ────────────────────────────────────────────
