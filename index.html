@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Егерь</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f5f5; --surface: #fff; --border: #e0e0e0;
+    --text: #111; --muted: #888; --accent: #111;
+    --radius: 20px;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+  }
+  .auth-wrap { width: 100%; max-width: 380px; padding: 24px 20px; }
+  .logo { text-align: center; margin-bottom: 36px; }
+  .logo-sigma { font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -4px; }
+  .logo-name { font-size: 18px; font-weight: 500; color: var(--muted); margin-top: 4px; letter-spacing: 4px; text-transform: uppercase; }
+  .auth-card { background: var(--surface); border-radius: var(--radius); padding: 28px 24px; box-shadow: 0 2px 20px rgba(0,0,0,0.07); }
+  .auth-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; text-align: center; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .field input { width: 100%; padding: 13px 16px; border: 1.5px solid var(--border); border-radius: 14px; font-size: 16px; outline: none; background: var(--bg); transition: border-color .2s; color: var(--text); }
+  .field input:focus { border-color: var(--accent); }
+  .btn { width: 100%; padding: 14px; border-radius: 14px; border: none; font-size: 16px; font-weight: 700; cursor: pointer; transition: opacity .2s; margin-top: 6px; }
+  .btn:active { opacity: .7; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: transparent; color: var(--muted); font-weight: 500; margin-top: 10px; }
+  .err { color: #c00; font-size: 13px; text-align: center; margin-top: 10px; min-height: 18px; }
+  .app { display: none; flex-direction: column; width: 100%; max-width: 480px; height: 100vh; background: var(--surface); }
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .app-logo { font-size: 26px; font-weight: 900; letter-spacing: -2px; }
+  .app-user { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .btn-logout { background: var(--bg); border: none; border-radius: 10px; padding: 6px 12px; font-size: 13px; cursor: pointer; color: var(--muted); font-weight: 600; }
+  .notif-bar { background: var(--bg); padding: 10px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .notif-bar span { font-size: 13px; color: var(--muted); flex: 1; }
+  .btn-notif { background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 15px; line-height: 1.4; word-break: break-word; }
+  .msg-me { align-self: flex-end; background: #111; color: #fff; border-bottom-right-radius: 5px; }
+  .msg-other { align-self: flex-start; background: #eee; color: var(--text); border-bottom-left-radius: 5px; }
+  .msg-name { font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 3px; }
+  .msg-time { font-size: 11px; opacity: .5; margin-top: 3px; text-align: right; }
+  .chat-input { display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .chat-input input { flex: 1; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: 20px; font-size: 15px; outline: none; background: var(--bg); color: var(--text); }
+  .chat-input input:focus { border-color: var(--accent); }
+  .btn-send { background: #111; color: #fff; border: none; border-radius: 50%; width: 44px; height: 44px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; display: inline-block; margin-right: 6px; }
+  .status-dot.online { background: #22c55e; }
+</style>
+</head>
+<body>
+
+<div class="auth-wrap" id="authWrap">
+  <div class="logo">
+    <div class="logo-sigma">Ʃ</div>
+    <div class="logo-name">Егерь</div>
+  </div>
+
+  <div class="auth-card" id="loginCard">
+    <div class="auth-title">Вход</div>
+    <div class="field"><label>Имя</label><input type="text" id="loginName" placeholder="Никнейм"></div>
+    <div class="field"><label>Пароль</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+    <button class="btn btn-primary" onclick="doLogin()">Войти</button>
+    <button class="btn btn-ghost" onclick="showReg()">Нет аккаунта? Зарегистрироваться</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+
+  <div class="auth-card" id="regCard" style="display:none">
+    <div class="auth-title">Регистрация</div>
+    <div class="field"><label>Имя</label><input type="text" id="regName" placeholder="Придумай никнейм"></div>
+    <div class="field"><label>Пароль</label><input type="password" id="regPass" placeholder="Минимум 4 символа"></div>
+    <button class="btn btn-primary" onclick="doRegister()">Создать аккаунт</button>
+    <button class="btn btn-ghost" onclick="showLogin()">Уже есть аккаунт? Войти</button>
+    <div class="err" id="regErr"></div>
+  </div>
+</div>
+
+<div class="app" id="appWrap">
+  <div class="app-header">
+    <div class="app-logo">Ʃ</div>
+    <div class="app-user">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="headerUser"></span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">Выйти</button>
+  </div>
+  <div class="notif-bar">
+    <span id="notifStatus">🔔 Уведомления выключены</span>
+    <button class="btn-notif" id="notifBtn" onclick="requestNotif()">Включить</button>
+  </div>
+  <div class="messages" id="messages"></div>
+  <div class="chat-input">
+    <input type="text" id="msgInput" placeholder="Сообщение..." onkeydown="if(event.key==='Enter') sendMsg()">
+    <button class="btn-send" onclick="sendMsg()">↑</button>
+  </div>
+</div>
+
+<script>
+let ws = null;
+let currentUser = '';
+let vapidKey = '';
+
+// ── Auth UI ───────────────────────────────────────────────
+function showReg() { document.getElementById('loginCard').style.display='none'; document.getElementById('regCard').style.display='block'; }
+function showLogin() { document.getElementById('regCard').style.display='none'; document.getElementById('loginCard').style.display='block'; }
+
+function doRegister() {
+  const username = document.getElementById('regName').value.trim();
+  const password = document.getElementById('regPass').value;
+  if (!username || password.length < 4) { document.getElementById('regErr').textContent = 'Заполни поля (пароль ≥ 4 символа)'; return; }
+  connect({ type: 'register', username, password }, 'regErr');
+}
+
+function doLogin() {
+  const username = document.getElementById('loginName').value.trim();
+  const password = document.getElementById('loginPass').value;
+  if (!username || !password) { document.getElementById('loginErr').textContent = 'Заполни все поля'; return; }
+  connect({ type: 'login', username, password }, 'loginErr');
+}
+
+// ── WebSocket ─────────────────────────────────────────────
+function connect(authMsg, errId) {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+
+  ws.onopen = () => {
+    document.getElementById('statusDot').classList.add('online');
+    ws.send(JSON.stringify(authMsg));
+  };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+
+    if (msg.type === 'error') {
+      document.getElementById(errId).textContent = msg.text;
+      ws.close(); ws = null;
+      return;
+    }
+
+    if (msg.type === 'auth_ok') {
+      currentUser = msg.username;
+      openApp();
+      msg.messages.forEach(addBubble);
+      return;
+    }
+
+    if (msg.type === 'message') {
+      addBubble(msg);
+    }
+  };
+
+  ws.onclose = () => {
+    document.getElementById('statusDot').classList.remove('online');
+  };
+}
+
+// ── App ───────────────────────────────────────────────────
+function openApp() {
+  document.getElementById('authWrap').style.display = 'none';
+  document.getElementById('appWrap').style.display = 'flex';
+  document.body.style.justifyContent = 'flex-start';
+  document.body.style.alignItems = 'flex-start';
+  document.getElementById('headerUser').textContent = currentUser;
+  loadVapidKey();
+}
+
+function doLogout() {
+  if (ws) ws.close();
+  currentUser = '';
+  document.getElementById('messages').innerHTML = '';
+  document.getElementById('appWrap').style.display = 'none';
+  document.getElementById('authWrap').style.display = 'block';
+  document.body.style.justifyContent = 'center';
+  document.body.style.alignItems = 'center';
+}
+
+function addBubble(m) {
+  const box = document.getElementById('messages');
+  const isMe = m.from === currentUser;
+  const div = document.createElement('div');
+  div.className = 'msg ' + (isMe ? 'msg-me' : 'msg-other');
+  div.innerHTML = (isMe ? '' : `<div class="msg-name">${m.from}</div>`) +
+    `<div>${m.text}</div><div class="msg-time">${m.time}</div>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function sendMsg() {
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text || !ws) return;
+  ws.send(JSON.stringify({ type: 'message', text }));
+  input.value = '';
+}
+
+// ── Push уведомления ─────────────────────────────────────
+async function loadVapidKey() {
+  try {
+    const r = await fetch('/vapid-public-key');
+    const d = await r.json();
+    vapidKey = d.key;
+    checkNotifStatus();
+  } catch { checkNotifStatus(); }
+}
+
+function checkNotifStatus() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+    document.getElementById('notifStatus').textContent = '🔕 Браузер не поддерживает уведомления';
+    document.getElementById('notifBtn').style.display = 'none';
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    document.getElementById('notifStatus').textContent = '🔔 Уведомления включены';
+    document.getElementById('notifBtn').textContent = 'Тест';
+    document.getElementById('notifBtn').onclick = testNotif;
+  } else if (Notification.permission === 'denied') {
+    document.getElementById('notifStatus').textContent = '🔕 Заблокированы в настройках';
+    document.getElementById('notifBtn').style.display = 'none';
+  }
+}
+
+async function requestNotif() {
+  if (!('serviceWorker' in navigator)) return alert('Нужен HTTPS для уведомлений');
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { checkNotifStatus(); return; }
+
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey)
+    });
+
+    ws.send(JSON.stringify({ type: 'subscribe', subscription: sub }));
+    checkNotifStatus();
+  } catch (e) {
+    console.error(e);
+    alert('Ошибка подписки: ' + e.message);
+  }
+}
+
+function testNotif() {
+  new Notification('Егерь', { body: 'Уведомления работают! 🎉' });
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return new Uint8Array([...rawData].map(c => c.charCodeAt(0)));
+}
+</script>
+</body>
+</html>

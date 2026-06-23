@@ -1,0 +1,14 @@
+{
+  "name": "eger-messenger",
+  "version": "1.0.0",
+  "description": "Егерь — простой мессенджер с push-уведомлениями",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "genkeys": "node -e \"const wp=require('web-push'); const k=wp.generateVAPIDKeys(); console.log('PUBLIC:', k.publicKey); console.log('PRIVATE:', k.privateKey);\""
+  },
+  "dependencies": {
+    "web-push": "^3.6.7",
+    "ws": "^8.16.0"
+  }
+}
