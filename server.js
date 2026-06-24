@@ -105,6 +105,7 @@ wss.on('connection', (ws) => {
       case 'subscribe': {
         if (!myName) return;
         subscriptions[myName] = msg.subscription;
+        console.log(`[sub] ${myName} подписался, всего подписок: ${Object.keys(subscriptions).length}`);
         break;
       }
     }
