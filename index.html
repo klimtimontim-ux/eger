@@ -342,7 +342,7 @@ async function requestNotif() {
       applicationServerKey: urlBase64ToUint8Array(vapidKey)
     });
     ws.send(JSON.stringify({ type: 'subscribe', subscription: sub }));
-    checkNotifStatus();
+alert('Подписка отправлена! endpoint: ' + sub.endpoint.slice(-20));
   } catch (e) {
     alert('Ошибка подписки: ' + e.message);
   }
