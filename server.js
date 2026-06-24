@@ -47,10 +47,10 @@ const clients = new Map(); // username → ws
 wss.on('connection', (ws) => {
   let myName = null;
 
-  ws.on('message', (raw) => {
+ ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
-
+    console.log(`[msg] type=${msg.type} from=${myName}`);
     switch (msg.type) {
 
       case 'register': {
