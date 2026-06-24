@@ -14,7 +14,6 @@
 :root { --bg: #f5f5f5; --surface: #fff; --border: #e0e0e0; --text: #111; --muted: #888; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
-/* AUTH */
 .auth-wrap { width: 100%; max-width: 380px; padding: 24px 20px; }
 .logo { text-align: center; margin-bottom: 32px; }
 .logo-icon { width: 80px; height: 80px; border-radius: 20px; overflow: hidden; margin: 0 auto 10px; }
@@ -32,33 +31,34 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .btn-ghost { background: transparent; color: var(--muted); font-weight: 500; margin-top: 10px; }
 .err { color: #c00; font-size: 13px; text-align: center; margin-top: 10px; min-height: 18px; }
 
-/* APP */
 .app { display: none; flex-direction: column; width: 100%; max-width: 900px; height: 100vh; background: var(--surface); }
 .app-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .app-header-left { display: flex; align-items: center; gap: 10px; }
 .app-header-logo { width: 32px; height: 32px; border-radius: 8px; overflow: hidden; }
 .app-header-logo img { width: 100%; height: 100%; }
 .app-header-name { font-size: 14px; font-weight: 700; }
-.app-header-sub { font-size: 11px; color: var(--muted); }
-.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block; margin-right: 4px; }
+.app-header-sub { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.conn-dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; display: inline-block; transition: background .3s; }
+.conn-dot.online { background: #22c55e; }
+.conn-dot.connecting { background: #f59e0b; }
 .btn-logout { background: var(--bg); border: none; border-radius: 10px; padding: 6px 12px; font-size: 13px; cursor: pointer; color: var(--muted); font-weight: 600; }
 .btn-notif { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; }
 
-/* Main */
 .main { display: flex; flex: 1; overflow: hidden; }
 
-/* Sidebar */
 .sidebar { width: 280px; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; background: #fafafa; }
 .sidebar-header { padding: 12px 12px 8px; flex-shrink: 0; }
 .search-box { display: flex; align-items: center; background: var(--bg); border: 1.5px solid var(--border); border-radius: 12px; padding: 8px 12px; gap: 8px; }
 .search-box input { flex: 1; border: none; outline: none; font-size: 14px; background: transparent; color: var(--text); }
-.search-icon { color: var(--muted); font-size: 14px; }
 .sidebar-list { flex: 1; overflow-y: auto; }
 .sidebar-section { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px 4px; }
-.chat-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background .15s; }
+
+.chat-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background .15s; position: relative; }
 .chat-item:hover { background: #f0f0f0; }
+.chat-item:hover .pin-btn { opacity: 1; }
 .chat-item.active { background: #111; }
-.chat-item.active .chat-item-name, .chat-item.active .chat-item-sub { color: #fff; }
+.chat-item.active .chat-item-name, .chat-item.active .chat-item-sub, .chat-item.active .chat-item-time { color: #fff; }
+.chat-item.pinned .chat-item-name::before { content: '📌 '; font-size: 11px; }
 .chat-avatar { width: 42px; height: 42px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; color: #555; flex-shrink: 0; }
 .chat-item.active .chat-avatar { background: #333; color: #fff; }
 .chat-item-info { flex: 1; min-width: 0; }
@@ -69,8 +69,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .unread-badge { background: #111; color: #fff; border-radius: 10px; padding: 2px 7px; font-size: 11px; font-weight: 700; }
 .chat-item.active .unread-badge { background: #fff; color: #111; }
 .online-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+.pin-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); opacity: 0; background: rgba(0,0,0,0.07); border: none; border-radius: 8px; padding: 4px 7px; font-size: 12px; cursor: pointer; transition: opacity .2s; }
+.chat-item.active .pin-btn { color: #fff; background: rgba(255,255,255,0.15); }
 
-/* Search results */
 .search-result { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background .15s; }
 .search-result:hover { background: #f0f0f0; }
 .search-result-info { flex: 1; }
@@ -78,7 +79,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .search-result-user { font-size: 12px; color: var(--muted); }
 .start-chat-btn { background: #111; color: #fff; border: none; border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer; font-weight: 600; }
 
-/* Mobile chat list */
 .mobile-chatlist { display: none; flex-direction: column; flex: 1; overflow: hidden; }
 .mobile-chatlist-header { padding: 14px 16px 8px; flex-shrink: 0; }
 .mobile-chatlist-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
@@ -86,15 +86,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .mobile-search-box input { flex: 1; border: none; outline: none; font-size: 15px; background: transparent; color: var(--text); }
 .mobile-chatlist-items { flex: 1; overflow-y: auto; }
 
-/* Chat area */
 .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-.chat-empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; }
+.chat-empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; text-align: center; padding: 20px; }
 .chat-pane { display: none; flex-direction: column; flex: 1; overflow: hidden; }
 .chat-pane-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .back-btn { display: none; background: none; border: none; font-size: 24px; cursor: pointer; color: #111; padding: 0 6px 0 0; line-height: 1; }
 .pane-avatar { width: 36px; height: 36px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #555; flex-shrink: 0; }
 .chat-pane-name { font-size: 15px; font-weight: 700; }
 .chat-pane-sub { font-size: 12px; color: var(--muted); }
+
 .messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
 .msg { max-width: 72%; display: flex; flex-direction: column; }
 .msg-me { align-self: flex-end; align-items: flex-end; }
@@ -109,6 +109,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .msg-status { font-size: 11px; color: var(--muted); }
 .msg-status.read { color: #3b82f6; }
 .msg-img { max-width: 200px; max-height: 200px; border-radius: 10px; display: block; cursor: pointer; }
+
 .chat-input-wrap { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
 .chat-input { flex: 1; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 20px; font-size: 14px; outline: none; background: var(--bg); color: var(--text); }
 .chat-input:focus { border-color: #111; }
@@ -128,7 +129,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 </head>
 <body>
 
-<!-- AUTH -->
 <div class="auth-wrap" id="authWrap">
   <div class="logo">
     <div class="logo-icon"><img src="/icon.png" alt="Ʃ"></div>
@@ -157,14 +157,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
 </div>
 
-<!-- APP -->
 <div class="app" id="appWrap">
   <div class="app-header">
     <div class="app-header-left">
       <div class="app-header-logo"><img src="/icon.png" alt="Ʃ"></div>
       <div>
         <div class="app-header-name" id="headerDisplay"></div>
-        <div class="app-header-sub"><span class="status-dot"></span><span id="headerUser"></span></div>
+        <div class="app-header-sub"><span class="conn-dot" id="connDot"></span><span id="headerUser"></span></div>
       </div>
     </div>
     <div style="display:flex;gap:6px;align-items:center">
@@ -174,40 +173,35 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
 
   <div class="main">
-    <!-- Desktop sidebar -->
     <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="search-box">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="searchInput" placeholder="Поиск по @юзернейму..." oninput="onSearch(this.value)">
+          <span>🔍</span>
+          <input type="text" id="searchInput" placeholder="Поиск..." oninput="onSearch(this.value)">
         </div>
       </div>
       <div class="sidebar-list" id="sidebarList"></div>
     </div>
 
-    <!-- Chat area -->
-    <div class="chat-area" id="chatArea">
-      <!-- Mobile chat list -->
+    <div class="chat-area">
       <div class="mobile-chatlist" id="mobileChatlist">
         <div class="mobile-chatlist-header">
           <div class="mobile-chatlist-title">Сообщения</div>
           <div class="mobile-search-box">
             <span>🔍</span>
-            <input type="text" id="mobileSearchInput" placeholder="Поиск по @юзернейму..." oninput="onSearch(this.value)">
+            <input type="text" id="mobileSearchInput" placeholder="Поиск..." oninput="onSearch(this.value)">
           </div>
         </div>
         <div class="mobile-chatlist-items" id="mobileChatlistItems"></div>
       </div>
 
-      <!-- Empty (desktop) -->
       <div class="chat-empty-state" id="emptyState">← Найди собеседника через поиск</div>
 
-      <!-- Chat pane -->
       <div class="chat-pane" id="chatPane">
         <div class="chat-pane-header">
           <button class="back-btn" onclick="goBack()">‹</button>
           <div class="pane-avatar" id="paneAvatar"></div>
-          <div>
+          <div style="flex:1">
             <div class="chat-pane-name" id="paneName"></div>
             <div class="chat-pane-sub" id="paneSub"></div>
           </div>
@@ -226,15 +220,28 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 <script>
 let ws = null;
+let wsReady = false;
+let reconnectTimer = null;
 let currentUser = '';
 let currentDisplay = '';
 let currentChat = null;
 let allUsers = {};
-let chats = {};
+let chats = {};      // username → {lastMsg, lastTime, unread, pinned}
 let vapidKey = '';
 let searchTimeout = null;
+let authCredentials = null;
 
 const isMobile = () => window.innerWidth <= 600;
+
+// ── Local storage ─────────────────────────────────────────
+function saveSession(u, p) { localStorage.setItem('eger_u', u); localStorage.setItem('eger_p', p); }
+function loadSession() { return { username: localStorage.getItem('eger_u'), password: localStorage.getItem('eger_p') }; }
+function clearSession() { localStorage.removeItem('eger_u'); localStorage.removeItem('eger_p'); }
+function saveChats() { try { localStorage.setItem('eger_chats_' + currentUser, JSON.stringify(chats)); } catch {} }
+function loadChats() { try { return JSON.parse(localStorage.getItem('eger_chats_' + currentUser) || '{}'); } catch { return {}; } }
+function savePins() { try { localStorage.setItem('eger_pins_' + currentUser, JSON.stringify(getPins())); } catch {} }
+function getPins() { return Object.keys(chats).filter(u => chats[u] && chats[u].pinned); }
+function loadPins() { try { return JSON.parse(localStorage.getItem('eger_pins_' + currentUser) || '[]'); } catch { return []; } }
 
 // ── Auth ──────────────────────────────────────────────────
 function showReg() { document.getElementById('loginCard').style.display='none'; document.getElementById('regCard').style.display='block'; }
@@ -245,58 +252,84 @@ function doRegister() {
   const username = document.getElementById('regName').value.trim().replace('@','');
   const password = document.getElementById('regPass').value;
   if (!username || !displayName || password.length < 4) { document.getElementById('regErr').textContent = 'Заполни все поля (пароль ≥ 4 символа)'; return; }
-  connect({ type: 'register', username, password, displayName }, 'regErr');
+  authCredentials = { type: 'register', username, password, displayName };
+  connectWS('regErr');
 }
 
 function doLogin() {
   const username = document.getElementById('loginName').value.trim().replace('@','');
   const password = document.getElementById('loginPass').value;
   if (!username || !password) { document.getElementById('loginErr').textContent = 'Заполни все поля'; return; }
-  connect({ type: 'login', username, password }, 'loginErr');
+  authCredentials = { type: 'login', username, password };
+  connectWS('loginErr');
 }
 
-function saveSession(u, p) { localStorage.setItem('eger_u', u); localStorage.setItem('eger_p', p); }
-function loadSession() { return { username: localStorage.getItem('eger_u'), password: localStorage.getItem('eger_p') }; }
-function clearSession() { localStorage.removeItem('eger_u'); localStorage.removeItem('eger_p'); }
+// ── WebSocket with auto-reconnect ─────────────────────────
+function connectWS(errId) {
+  if (ws) { try { ws.close(); } catch {} }
+  setDot('connecting');
 
-// ── WebSocket ─────────────────────────────────────────────
-function connect(authMsg, errId) {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}`);
-  ws.onopen = () => ws.send(JSON.stringify(authMsg));
+  wsReady = false;
+
+  ws.onopen = () => {
+    wsReady = true;
+    clearTimeout(reconnectTimer);
+    setDot('online');
+    ws.send(JSON.stringify(authCredentials));
+  };
+
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
+
     if (msg.type === 'error') {
       if (errId) document.getElementById(errId).textContent = msg.text;
       else { clearSession(); location.reload(); }
-      ws.close(); ws = null; return;
+      wsReady = false;
+      return;
     }
+
     if (msg.type === 'auth_ok') {
-      currentUser = msg.username; currentDisplay = msg.displayName;
-      if (authMsg.password) saveSession(authMsg.username, authMsg.password);
-      openApp(); return;
+      currentUser = msg.username;
+      currentDisplay = msg.displayName;
+      saveSession(authCredentials.username, authCredentials.password);
+      // Загружаем сохранённые чаты и закрепления
+      chats = loadChats();
+      const pins = loadPins();
+      pins.forEach(u => { if (chats[u]) chats[u].pinned = true; });
+      openApp();
+      return;
     }
+
     if (msg.type === 'users') {
       allUsers = {};
       msg.users.forEach(u => allUsers[u.username] = { displayName: u.displayName, online: u.online });
-      renderLists(); return;
+      renderLists();
+      return;
     }
+
     if (msg.type === 'history') { renderHistory(msg.with, msg.messages); return; }
+
     if (msg.type === 'message') {
       const other = msg.from === currentUser ? msg.with : msg.from;
-      if (!chats[other]) chats[other] = { unread: 0 };
+      if (!chats[other]) chats[other] = { unread: 0, pinned: false };
       chats[other].lastMsg = msg.text || (msg.fileName ? '📎 ' + msg.fileName : '');
       chats[other].lastTime = msg.time;
       const chatOpen = other === currentChat && document.getElementById('chatPane').style.display !== 'none';
       if (!chatOpen) chats[other].unread = (chats[other].unread || 0) + 1;
-      if (other === currentChat) { addBubble(msg); ws.send(JSON.stringify({ type: 'read', with: other })); }
-      renderLists(); return;
+      if (other === currentChat) { addBubble(msg); wsSend({ type: 'read', with: other }); }
+      saveChats();
+      renderLists();
+      return;
     }
+
     if (msg.type === 'status') {
       const el = document.querySelector(`.msg-status[data-id="${msg.id}"]`);
       if (el) { el.textContent = statusIcon(msg.status); el.className = 'msg-status' + (msg.status==='read'?' read':''); }
       return;
     }
+
     if (msg.type === 'read') {
       msg.ids.forEach(id => {
         const el = document.querySelector(`.msg-status[data-id="${id}"]`);
@@ -305,9 +338,37 @@ function connect(authMsg, errId) {
       return;
     }
   };
-  ws.onclose = () => {};
+
+  ws.onclose = () => {
+    wsReady = false;
+    setDot('offline');
+    // Автопереподключение если уже вошли
+    if (currentUser) {
+      reconnectTimer = setTimeout(() => {
+        setDot('connecting');
+        connectWS(null);
+      }, 3000);
+    }
+  };
+
+  ws.onerror = () => { wsReady = false; };
 }
 
+function wsSend(obj) {
+  if (ws && wsReady && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+    return true;
+  }
+  return false;
+}
+
+function setDot(state) {
+  const dot = document.getElementById('connDot');
+  if (!dot) return;
+  dot.className = 'conn-dot' + (state === 'online' ? ' online' : state === 'connecting' ? ' connecting' : '');
+}
+
+// ── App ───────────────────────────────────────────────────
 function openApp() {
   document.getElementById('authWrap').style.display = 'none';
   document.getElementById('appWrap').style.display = 'flex';
@@ -320,13 +381,26 @@ function openApp() {
     document.getElementById('emptyState').style.display = 'none';
   }
   loadVapidKey();
+  renderLists();
 }
 
-function doLogout() { clearSession(); if (ws) ws.close(); location.reload(); }
+function doLogout() { clearSession(); clearTimeout(reconnectTimer); if (ws) ws.close(); location.reload(); }
+
 function goBack() {
   currentChat = null;
   document.getElementById('chatPane').style.display = 'none';
   document.getElementById('mobileChatlist').style.display = 'flex';
+  renderLists();
+}
+
+// ── Pin ───────────────────────────────────────────────────
+function togglePin(username, e) {
+  e.stopPropagation();
+  if (!chats[username]) chats[username] = {};
+  chats[username].pinned = !chats[username].pinned;
+  savePins();
+  saveChats();
+  renderLists();
 }
 
 // ── Search ────────────────────────────────────────────────
@@ -334,24 +408,20 @@ async function onSearch(q) {
   clearTimeout(searchTimeout);
   if (!q.trim()) { renderLists(); return; }
   searchTimeout = setTimeout(async () => {
-    const r = await fetch('/search?q=' + encodeURIComponent(q.replace('@','')));
-    const results = await r.json();
-    renderSearchResults(results, q);
+    try {
+      const r = await fetch('/search?q=' + encodeURIComponent(q.replace('@','')));
+      const results = await r.json();
+      renderSearchResults(results.filter(u => u.username !== currentUser));
+    } catch {}
   }, 300);
 }
 
-function renderSearchResults(results, q) {
-  const filtered = results.filter(u => u.username !== currentUser);
-  const sidebarEl = document.getElementById('sidebarList');
-  const mobileEl = document.getElementById('mobileChatlistItems');
-  [sidebarEl, mobileEl].forEach(el => {
+function renderSearchResults(results) {
+  [document.getElementById('sidebarList'), document.getElementById('mobileChatlistItems')].forEach(el => {
     el.innerHTML = '';
-    if (filtered.length === 0) {
-      el.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Никого не найдено</div>';
-      return;
-    }
+    if (results.length === 0) { el.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Никого не найдено</div>'; return; }
     el.innerHTML = '<div class="sidebar-section">Результаты поиска</div>';
-    filtered.forEach(u => {
+    results.forEach(u => {
       const div = document.createElement('div');
       div.className = 'search-result';
       div.innerHTML = `
@@ -371,17 +441,26 @@ function renderSearchResults(results, q) {
 function renderLists() {
   const sEl = document.getElementById('sidebarList');
   const mEl = document.getElementById('mobileChatlistItems');
-  const q = (document.getElementById('searchInput') || {}).value || '';
-  const mq = (document.getElementById('mobileSearchInput') || {}).value || '';
-  if (q || mq) return; // не перекрываем поиск
 
-  const chatUsers = Object.keys(chats).filter(u => u !== currentUser && chats[u].lastMsg !== undefined);
-  chatUsers.sort((a,b) => (chats[b].lastTime||'') > (chats[a].lastTime||'') ? 1 : -1);
+  // Не перекрываем активный поиск
+  const sq = (document.getElementById('searchInput') || {}).value || '';
+  const mq = (document.getElementById('mobileSearchInput') || {}).value || '';
+  if (sq || mq) return;
+
+  const chatUsers = Object.keys(chats).filter(u => u !== currentUser && chats[u] && chats[u].lastMsg !== undefined);
+
+  // Сортировка: сначала закреплённые, потом по времени
+  chatUsers.sort((a, b) => {
+    const pa = chats[a].pinned ? 1 : 0;
+    const pb = chats[b].pinned ? 1 : 0;
+    if (pa !== pb) return pb - pa;
+    return (chats[b].lastTime || '') > (chats[a].lastTime || '') ? 1 : -1;
+  });
 
   [sEl, mEl].forEach(el => {
     el.innerHTML = '';
     if (chatUsers.length === 0) {
-      el.innerHTML = '<div style="padding:24px;text-align:center;color:#aaa;font-size:13px">Используй поиск чтобы найти собеседника</div>';
+      el.innerHTML = '<div style="padding:24px;text-align:center;color:#aaa;font-size:13px">Используй поиск 🔍 чтобы найти собеседника</div>';
       return;
     }
     chatUsers.forEach(u => {
@@ -391,6 +470,7 @@ function renderLists() {
       el.appendChild(item);
     });
   });
+
   document.querySelectorAll('.chat-item').forEach(el => {
     el.addEventListener('click', () => openChat(el.dataset.user));
   });
@@ -398,50 +478,60 @@ function renderLists() {
 
 function makeChatItem(username, info, chat) {
   const div = document.createElement('div');
-  div.className = 'chat-item' + (username === currentChat ? ' active' : '');
+  div.className = 'chat-item' + (username === currentChat ? ' active' : '') + (chat.pinned ? ' pinned' : '');
   div.dataset.user = username;
+  const pinLabel = chat.pinned ? 'Открепить' : 'Закрепить';
+  const pinIcon = chat.pinned ? '📌' : '📍';
   div.innerHTML = `
     <div class="chat-avatar">${info.displayName[0].toUpperCase()}</div>
     <div class="chat-item-info">
       <div class="chat-item-name">${info.displayName}</div>
-      <div class="chat-item-sub">${chat.lastMsg || ''}</div>
+      <div class="chat-item-sub">${esc(chat.lastMsg || '')}</div>
     </div>
     <div class="chat-item-meta">
       <div class="chat-item-time">${chat.lastTime || ''}</div>
       ${chat.unread ? `<div class="unread-badge">${chat.unread}</div>` : (info.online ? '<div class="online-dot"></div>' : '')}
     </div>
+    <button class="pin-btn" onclick="togglePin('${username}', event)" title="${pinLabel}">${pinIcon}</button>
   `;
   return div;
 }
 
+// ── Chat ──────────────────────────────────────────────────
 function openChat(username) {
   currentChat = username;
-  if (chats[username]) chats[username].unread = 0;
+  if (!chats[username]) chats[username] = { unread: 0, pinned: false };
+  chats[username].unread = 0;
+  saveChats();
+
   const info = allUsers[username] || { displayName: username, online: false };
   document.getElementById('paneAvatar').textContent = info.displayName[0].toUpperCase();
   document.getElementById('paneName').textContent = info.displayName;
   document.getElementById('paneSub').textContent = '@' + username + (info.online ? ' · онлайн' : '');
   document.getElementById('messages').innerHTML = '';
+
   if (isMobile()) document.getElementById('mobileChatlist').style.display = 'none';
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('chatPane').style.display = 'flex';
+
   // Очистить поиск
-  if (document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
-  if (document.getElementById('mobileSearchInput')) document.getElementById('mobileSearchInput').value = '';
+  ['searchInput','mobileSearchInput'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   renderLists();
-  ws.send(JSON.stringify({ type: 'get_history', with: username }));
-  ws.send(JSON.stringify({ type: 'read', with: username }));
+
+  wsSend({ type: 'get_history', with: username });
+  wsSend({ type: 'read', with: username });
   document.getElementById('msgInput').focus();
 }
 
 function renderHistory(withUser, msgs) {
   if (withUser !== currentChat) return;
   document.getElementById('messages').innerHTML = '';
-  if (msgs.length && !chats[withUser]) chats[withUser] = {};
   if (msgs.length) {
+    if (!chats[withUser]) chats[withUser] = {};
     const last = msgs[msgs.length-1];
     chats[withUser].lastMsg = last.text || (last.fileName ? '📎 ' + last.fileName : '');
     chats[withUser].lastTime = last.time;
+    saveChats();
   }
   msgs.forEach(addBubble);
 }
@@ -453,8 +543,8 @@ function addBubble(m) {
   div.className = 'msg ' + (isMe ? 'msg-me' : 'msg-other');
   let content = '';
   if (m.fileUrl) {
-    const isImage = m.fileType && m.fileType.startsWith('image/');
-    if (isImage) content = `<img class="msg-img" src="${m.fileUrl}" onclick="window.open('${m.fileUrl}')">`;
+    const isImg = m.fileType && m.fileType.startsWith('image/');
+    if (isImg) content = `<img class="msg-img" src="${m.fileUrl}" onclick="window.open('${m.fileUrl}')">`;
     else content = `<a class="msg-file" href="${m.fileUrl}" download="${m.fileName}" target="_blank"><span>📎</span><span class="msg-file-name">${m.fileName}</span></a>`;
     if (m.text) content += `<div style="margin-top:4px">${esc(m.text)}</div>`;
   } else {
@@ -466,14 +556,18 @@ function addBubble(m) {
   box.scrollTop = box.scrollHeight;
 }
 
-function statusIcon(s) { return s === 'read' ? '✓✓' : s === 'delivered' ? '✓✓' : '✓'; }
+function statusIcon(s) { return (s === 'read' || s === 'delivered') ? '✓✓' : '✓'; }
 function esc(t) { return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function sendMsg() {
   const input = document.getElementById('msgInput');
   const text = input.value.trim();
-  if (!text || !ws || !currentChat) return;
-  ws.send(JSON.stringify({ type: 'message', to: currentChat, text }));
+  if (!text || !currentChat) return;
+  if (!wsSend({ type: 'message', to: currentChat, text })) {
+    // WS не готов — переподключаемся
+    connectWS(null);
+    setTimeout(() => wsSend({ type: 'message', to: currentChat, text }), 1500);
+  }
   input.value = '';
 }
 
@@ -485,8 +579,8 @@ async function sendFile(input) {
   try {
     const r = await fetch('/upload', { method: 'POST', body: formData });
     const d = await r.json();
-    ws.send(JSON.stringify({ type: 'message', to: currentChat, fileUrl: d.url, fileName: d.name, fileType: file.type }));
-  } catch(e) { alert('Ошибка загрузки'); }
+    wsSend({ type: 'message', to: currentChat, fileUrl: d.url, fileName: d.name, fileType: file.type });
+  } catch { alert('Ошибка загрузки'); }
   input.value = '';
 }
 
@@ -508,7 +602,7 @@ async function requestNotif() {
     const reg = await navigator.serviceWorker.register('/sw.js');
     await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
-    ws.send(JSON.stringify({ type: 'subscribe', subscription: sub }));
+    wsSend({ type: 'subscribe', subscription: sub });
     checkNotifStatus();
   } catch(e) { alert('Ошибка: ' + e.message); }
 }
@@ -522,7 +616,10 @@ function urlBase64ToUint8Array(b) {
 
 // ── Init ──────────────────────────────────────────────────
 const s = loadSession();
-if (s.username && s.password) connect({ type: 'login', username: s.username, password: s.password }, null);
+if (s.username && s.password) {
+  authCredentials = { type: 'login', username: s.username, password: s.password };
+  connectWS(null);
+}
 </script>
 </body>
 </html>
