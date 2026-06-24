@@ -4,18 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="apple-touch-icon" href="/icon.png">
 <title>Егерь</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-:root { --bg: #f5f5f5; --surface: #fff; --border: #e0e0e0; --text: #111; --muted: #888; --accent: #111; }
-
+:root { --bg: #f5f5f5; --surface: #fff; --border: #e0e0e0; --text: #111; --muted: #888; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
 /* AUTH */
 .auth-wrap { width: 100%; max-width: 380px; padding: 24px 20px; }
 .logo { text-align: center; margin-bottom: 32px; }
-.logo-icon { width: 80px; height: 80px; background: #111; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-size: 52px; font-weight: 900; color: #fff; line-height: 1; }
+.logo-icon { width: 80px; height: 80px; border-radius: 20px; overflow: hidden; margin: 0 auto 10px; }
+.logo-icon img { width: 100%; height: 100%; }
 .logo-name { font-size: 18px; font-weight: 500; color: var(--muted); letter-spacing: 4px; text-transform: uppercase; }
 .auth-card { background: var(--surface); border-radius: 20px; padding: 28px 24px; box-shadow: 0 2px 20px rgba(0,0,0,0.07); }
 .auth-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; text-align: center; }
@@ -31,45 +34,56 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 /* APP */
 .app { display: none; flex-direction: column; width: 100%; max-width: 900px; height: 100vh; background: var(--surface); }
-
-/* Header */
 .app-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .app-header-left { display: flex; align-items: center; gap: 10px; }
-.app-header-logo { width: 34px; height: 34px; background: #111; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #fff; }
+.app-header-logo { width: 32px; height: 32px; border-radius: 8px; overflow: hidden; }
+.app-header-logo img { width: 100%; height: 100%; }
 .app-header-name { font-size: 14px; font-weight: 700; }
 .app-header-sub { font-size: 11px; color: var(--muted); }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block; margin-right: 4px; }
 .btn-logout { background: var(--bg); border: none; border-radius: 10px; padding: 6px 12px; font-size: 13px; cursor: pointer; color: var(--muted); font-weight: 600; }
+.btn-notif { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; }
 
-/* Notif bar */
-.notif-bar { background: var(--bg); padding: 7px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.notif-bar span { font-size: 12px; color: var(--muted); flex: 1; }
-.btn-notif { background: #111; color: #fff; border: none; border-radius: 10px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
-
-/* Main layout */
+/* Main */
 .main { display: flex; flex: 1; overflow: hidden; }
 
-/* Sidebar (desktop) */
-.sidebar { width: 260px; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; background: #fafafa; }
-.sidebar-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 14px 16px 8px; }
+/* Sidebar */
+.sidebar { width: 280px; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; background: #fafafa; }
+.sidebar-header { padding: 12px 12px 8px; flex-shrink: 0; }
+.search-box { display: flex; align-items: center; background: var(--bg); border: 1.5px solid var(--border); border-radius: 12px; padding: 8px 12px; gap: 8px; }
+.search-box input { flex: 1; border: none; outline: none; font-size: 14px; background: transparent; color: var(--text); }
+.search-icon { color: var(--muted); font-size: 14px; }
+.sidebar-list { flex: 1; overflow-y: auto; }
+.sidebar-section { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px 4px; }
 .chat-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background .15s; }
 .chat-item:hover { background: #f0f0f0; }
 .chat-item.active { background: #111; }
 .chat-item.active .chat-item-name, .chat-item.active .chat-item-sub { color: #fff; }
-.chat-avatar { width: 40px; height: 40px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #555; flex-shrink: 0; }
+.chat-avatar { width: 42px; height: 42px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; color: #555; flex-shrink: 0; }
 .chat-item.active .chat-avatar { background: #333; color: #fff; }
 .chat-item-info { flex: 1; min-width: 0; }
 .chat-item-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chat-item-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chat-item-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.chat-item-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.chat-item-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
 .chat-item-time { font-size: 11px; color: var(--muted); }
 .unread-badge { background: #111; color: #fff; border-radius: 10px; padding: 2px 7px; font-size: 11px; font-weight: 700; }
 .chat-item.active .unread-badge { background: #fff; color: #111; }
-.online-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+.online-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
 
-/* Mobile: chat list view */
+/* Search results */
+.search-result { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background .15s; }
+.search-result:hover { background: #f0f0f0; }
+.search-result-info { flex: 1; }
+.search-result-name { font-size: 14px; font-weight: 600; }
+.search-result-user { font-size: 12px; color: var(--muted); }
+.start-chat-btn { background: #111; color: #fff; border: none; border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer; font-weight: 600; }
+
+/* Mobile chat list */
 .mobile-chatlist { display: none; flex-direction: column; flex: 1; overflow: hidden; }
-.mobile-chatlist-header { padding: 14px 16px; font-size: 17px; font-weight: 700; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.mobile-chatlist-header { padding: 14px 16px 8px; flex-shrink: 0; }
+.mobile-chatlist-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+.mobile-search-box { display: flex; align-items: center; background: var(--bg); border: 1.5px solid var(--border); border-radius: 12px; padding: 9px 14px; gap: 8px; }
+.mobile-search-box input { flex: 1; border: none; outline: none; font-size: 15px; background: transparent; color: var(--text); }
 .mobile-chatlist-items { flex: 1; overflow-y: auto; }
 
 /* Chat area */
@@ -77,7 +91,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .chat-empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; }
 .chat-pane { display: none; flex-direction: column; flex: 1; overflow: hidden; }
 .chat-pane-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.back-btn { display: none; background: none; border: none; font-size: 22px; cursor: pointer; color: #111; padding: 0 8px 0 0; }
+.back-btn { display: none; background: none; border: none; font-size: 24px; cursor: pointer; color: #111; padding: 0 6px 0 0; line-height: 1; }
+.pane-avatar { width: 36px; height: 36px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #555; flex-shrink: 0; }
 .chat-pane-name { font-size: 15px; font-weight: 700; }
 .chat-pane-sub { font-size: 12px; color: var(--muted); }
 .messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
@@ -88,14 +103,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .msg-me .msg-bubble { background: #111; color: #fff; border-bottom-right-radius: 4px; }
 .msg-other .msg-bubble { background: #eee; color: var(--text); border-bottom-left-radius: 4px; }
 .msg-file { display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; }
-.msg-file-icon { font-size: 22px; }
 .msg-file-name { font-size: 13px; font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.msg-meta { display: flex; align-items: center; gap: 4px; margin-top: 3px; padding: 0 2px; }
+.msg-meta { display: flex; align-items: center; gap: 4px; margin-top: 2px; padding: 0 2px; }
 .msg-time { font-size: 10px; color: var(--muted); }
 .msg-status { font-size: 11px; color: var(--muted); }
 .msg-status.read { color: #3b82f6; }
-
-/* Input */
+.msg-img { max-width: 200px; max-height: 200px; border-radius: 10px; display: block; cursor: pointer; }
 .chat-input-wrap { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
 .chat-input { flex: 1; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 20px; font-size: 14px; outline: none; background: var(--bg); color: var(--text); }
 .chat-input:focus { border-color: #111; }
@@ -103,10 +116,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .btn-send { background: #111; color: #fff; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 #fileInput { display: none; }
 
-/* Image preview in chat */
-.msg-img { max-width: 200px; max-height: 200px; border-radius: 10px; display: block; cursor: pointer; }
-
-/* Desktop/mobile toggle */
 @media (max-width: 600px) {
   .sidebar { display: none !important; }
   .back-btn { display: block; }
@@ -122,12 +131,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 <!-- AUTH -->
 <div class="auth-wrap" id="authWrap">
   <div class="logo">
-    <div class="logo-icon">Ʃ</div>
+    <div class="logo-icon"><img src="/icon.png" alt="Ʃ"></div>
     <div class="logo-name">Егерь</div>
   </div>
   <div class="auth-card" id="loginCard">
     <div class="auth-title">Вход</div>
-    <div class="field"><label>Юзернейм</label><input type="text" id="loginName" placeholder="@username" autocomplete="username"></div>
+    <div class="field"><label>Юзернейм</label><input type="text" id="loginName" placeholder="username" autocomplete="username"></div>
     <div class="field"><label>Пароль</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"></div>
     <button class="btn btn-primary" onclick="doLogin()">Войти</button>
     <button class="btn btn-ghost" onclick="showReg()">Нет аккаунта? Зарегистрироваться</button>
@@ -135,13 +144,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
   <div class="auth-card" id="regCard" style="display:none">
     <div class="auth-title">Регистрация</div>
-    <div class="field">
-      <label>Имя (отображаемое)</label>
-      <input type="text" id="regDisplay" placeholder="Как тебя зовут?" autocomplete="name">
-    </div>
+    <div class="field"><label>Имя (отображаемое)</label><input type="text" id="regDisplay" placeholder="Как тебя зовут?" autocomplete="name"></div>
     <div class="field">
       <label>Юзернейм</label>
-      <input type="text" id="regName" placeholder="@username" autocomplete="username">
+      <input type="text" id="regName" placeholder="username" autocomplete="username">
       <div class="field-hint">Только буквы, цифры и _ (без @)</div>
     </div>
     <div class="field"><label>Пароль</label><input type="password" id="regPass" placeholder="Минимум 4 символа" autocomplete="new-password"></div>
@@ -155,14 +161,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 <div class="app" id="appWrap">
   <div class="app-header">
     <div class="app-header-left">
-      <div class="app-header-logo">Ʃ</div>
+      <div class="app-header-logo"><img src="/icon.png" alt="Ʃ"></div>
       <div>
         <div class="app-header-name" id="headerDisplay"></div>
         <div class="app-header-sub"><span class="status-dot"></span><span id="headerUser"></span></div>
       </div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn-notif" id="notifBtn" onclick="requestNotif()">🔔</button>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="btn-notif" id="notifBtn" onclick="requestNotif()" title="Уведомления">🔔</button>
       <button class="btn-logout" onclick="doLogout()">Выйти</button>
     </div>
   </div>
@@ -170,26 +176,37 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <div class="main">
     <!-- Desktop sidebar -->
     <div class="sidebar" id="sidebar">
-      <div class="sidebar-title">Сообщения</div>
-      <div id="sidebarItems"></div>
+      <div class="sidebar-header">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Поиск по @юзернейму..." oninput="onSearch(this.value)">
+        </div>
+      </div>
+      <div class="sidebar-list" id="sidebarList"></div>
     </div>
 
     <!-- Chat area -->
     <div class="chat-area" id="chatArea">
-      <!-- Mobile: chat list -->
+      <!-- Mobile chat list -->
       <div class="mobile-chatlist" id="mobileChatlist">
-        <div class="mobile-chatlist-header">Сообщения</div>
+        <div class="mobile-chatlist-header">
+          <div class="mobile-chatlist-title">Сообщения</div>
+          <div class="mobile-search-box">
+            <span>🔍</span>
+            <input type="text" id="mobileSearchInput" placeholder="Поиск по @юзернейму..." oninput="onSearch(this.value)">
+          </div>
+        </div>
         <div class="mobile-chatlist-items" id="mobileChatlistItems"></div>
       </div>
 
-      <!-- Empty state (desktop) -->
-      <div class="chat-empty-state" id="emptyState">← Выбери собеседника</div>
+      <!-- Empty (desktop) -->
+      <div class="chat-empty-state" id="emptyState">← Найди собеседника через поиск</div>
 
       <!-- Chat pane -->
       <div class="chat-pane" id="chatPane">
         <div class="chat-pane-header">
           <button class="back-btn" onclick="goBack()">‹</button>
-          <div class="chat-avatar" id="paneAvatar" style="width:34px;height:34px;font-size:14px"></div>
+          <div class="pane-avatar" id="paneAvatar"></div>
           <div>
             <div class="chat-pane-name" id="paneName"></div>
             <div class="chat-pane-sub" id="paneSub"></div>
@@ -211,11 +228,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 let ws = null;
 let currentUser = '';
 let currentDisplay = '';
-let currentChat = null; // username
-let allUsers = {}; // username → {displayName, online}
-let chats = {}; // username → {lastMsg, lastTime, unread}
+let currentChat = null;
+let allUsers = {};
+let chats = {};
 let vapidKey = '';
-let isMobile = () => window.innerWidth <= 600;
+let searchTimeout = null;
+
+const isMobile = () => window.innerWidth <= 600;
 
 // ── Auth ──────────────────────────────────────────────────
 function showReg() { document.getElementById('loginCard').style.display='none'; document.getElementById('regCard').style.display='block'; }
@@ -236,15 +255,9 @@ function doLogin() {
   connect({ type: 'login', username, password }, 'loginErr');
 }
 
-// ── Session ───────────────────────────────────────────────
-function saveSession(username, password) {
-  localStorage.setItem('eger_user', username);
-  localStorage.setItem('eger_pass', password);
-}
-function loadSession() {
-  return { username: localStorage.getItem('eger_user'), password: localStorage.getItem('eger_pass') };
-}
-function clearSession() { localStorage.removeItem('eger_user'); localStorage.removeItem('eger_pass'); }
+function saveSession(u, p) { localStorage.setItem('eger_u', u); localStorage.setItem('eger_p', p); }
+function loadSession() { return { username: localStorage.getItem('eger_u'), password: localStorage.getItem('eger_p') }; }
+function clearSession() { localStorage.removeItem('eger_u'); localStorage.removeItem('eger_p'); }
 
 // ── WebSocket ─────────────────────────────────────────────
 function connect(authMsg, errId) {
@@ -253,56 +266,38 @@ function connect(authMsg, errId) {
   ws.onopen = () => ws.send(JSON.stringify(authMsg));
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-
     if (msg.type === 'error') {
       if (errId) document.getElementById(errId).textContent = msg.text;
       else { clearSession(); location.reload(); }
       ws.close(); ws = null; return;
     }
-
     if (msg.type === 'auth_ok') {
-      currentUser = msg.username;
-      currentDisplay = msg.displayName;
+      currentUser = msg.username; currentDisplay = msg.displayName;
       if (authMsg.password) saveSession(authMsg.username, authMsg.password);
       openApp(); return;
     }
-
     if (msg.type === 'users') {
       allUsers = {};
-      msg.users.forEach(u => { allUsers[u.username] = { displayName: u.displayName, online: u.online }; });
+      msg.users.forEach(u => allUsers[u.username] = { displayName: u.displayName, online: u.online });
       renderLists(); return;
     }
-
-    if (msg.type === 'history') {
-      renderHistory(msg.with, msg.messages); return;
-    }
-
+    if (msg.type === 'history') { renderHistory(msg.with, msg.messages); return; }
     if (msg.type === 'message') {
       const other = msg.from === currentUser ? msg.with : msg.from;
-      // Обновляем превью чата
       if (!chats[other]) chats[other] = { unread: 0 };
       chats[other].lastMsg = msg.text || (msg.fileName ? '📎 ' + msg.fileName : '');
       chats[other].lastTime = msg.time;
-      if (other !== currentChat || (isMobile() && document.getElementById('chatPane').style.display === 'none')) {
-        chats[other].unread = (chats[other].unread || 0) + 1;
-      }
-      if (other === currentChat) {
-        addBubble(msg);
-        // Отправляем read
-        ws.send(JSON.stringify({ type: 'read', with: other }));
-      }
+      const chatOpen = other === currentChat && document.getElementById('chatPane').style.display !== 'none';
+      if (!chatOpen) chats[other].unread = (chats[other].unread || 0) + 1;
+      if (other === currentChat) { addBubble(msg); ws.send(JSON.stringify({ type: 'read', with: other })); }
       renderLists(); return;
     }
-
     if (msg.type === 'status') {
-      // Обновляем статус сообщения
       const el = document.querySelector(`.msg-status[data-id="${msg.id}"]`);
-      if (el) { el.textContent = statusIcon(msg.status); el.className = 'msg-status' + (msg.status === 'read' ? ' read' : ''); }
+      if (el) { el.textContent = statusIcon(msg.status); el.className = 'msg-status' + (msg.status==='read'?' read':''); }
       return;
     }
-
     if (msg.type === 'read') {
-      // Помечаем наши сообщения прочитанными
       msg.ids.forEach(id => {
         const el = document.querySelector(`.msg-status[data-id="${id}"]`);
         if (el) { el.textContent = '✓✓'; el.className = 'msg-status read'; }
@@ -313,7 +308,6 @@ function connect(authMsg, errId) {
   ws.onclose = () => {};
 }
 
-// ── App ───────────────────────────────────────────────────
 function openApp() {
   document.getElementById('authWrap').style.display = 'none';
   document.getElementById('appWrap').style.display = 'flex';
@@ -328,58 +322,83 @@ function openApp() {
   loadVapidKey();
 }
 
-function doLogout() {
-  clearSession();
-  if (ws) ws.close();
-  location.reload();
-}
-
+function doLogout() { clearSession(); if (ws) ws.close(); location.reload(); }
 function goBack() {
   currentChat = null;
   document.getElementById('chatPane').style.display = 'none';
   document.getElementById('mobileChatlist').style.display = 'flex';
 }
 
+// ── Search ────────────────────────────────────────────────
+async function onSearch(q) {
+  clearTimeout(searchTimeout);
+  if (!q.trim()) { renderLists(); return; }
+  searchTimeout = setTimeout(async () => {
+    const r = await fetch('/search?q=' + encodeURIComponent(q.replace('@','')));
+    const results = await r.json();
+    renderSearchResults(results, q);
+  }, 300);
+}
+
+function renderSearchResults(results, q) {
+  const filtered = results.filter(u => u.username !== currentUser);
+  const sidebarEl = document.getElementById('sidebarList');
+  const mobileEl = document.getElementById('mobileChatlistItems');
+  [sidebarEl, mobileEl].forEach(el => {
+    el.innerHTML = '';
+    if (filtered.length === 0) {
+      el.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;font-size:13px">Никого не найдено</div>';
+      return;
+    }
+    el.innerHTML = '<div class="sidebar-section">Результаты поиска</div>';
+    filtered.forEach(u => {
+      const div = document.createElement('div');
+      div.className = 'search-result';
+      div.innerHTML = `
+        <div class="chat-avatar">${u.displayName[0].toUpperCase()}</div>
+        <div class="search-result-info">
+          <div class="search-result-name">${u.displayName}</div>
+          <div class="search-result-user">@${u.username}</div>
+        </div>
+        <button class="start-chat-btn" onclick="openChat('${u.username}')">Написать</button>
+      `;
+      el.appendChild(div);
+    });
+  });
+}
+
 // ── Render lists ──────────────────────────────────────────
 function renderLists() {
-  const sidebarEl = document.getElementById('sidebarItems');
-  const mobileEl = document.getElementById('mobileChatlistItems');
-  sidebarEl.innerHTML = '';
-  mobileEl.innerHTML = '';
+  const sEl = document.getElementById('sidebarList');
+  const mEl = document.getElementById('mobileChatlistItems');
+  const q = (document.getElementById('searchInput') || {}).value || '';
+  const mq = (document.getElementById('mobileSearchInput') || {}).value || '';
+  if (q || mq) return; // не перекрываем поиск
 
-  // Только те с кем есть история
   const chatUsers = Object.keys(chats).filter(u => u !== currentUser && chats[u].lastMsg !== undefined);
-  // Сортируем по времени последнего сообщения
   chatUsers.sort((a,b) => (chats[b].lastTime||'') > (chats[a].lastTime||'') ? 1 : -1);
 
-  if (chatUsers.length === 0) {
-    const empty = document.createElement('div');
-    empty.style.cssText = 'padding:20px;text-align:center;color:#aaa;font-size:13px;';
-    empty.textContent = 'Пока нет сообщений';
-    sidebarEl.appendChild(empty.cloneNode(true));
-    mobileEl.appendChild(empty);
-    return;
-  }
-
-  chatUsers.forEach(u => {
-    const info = allUsers[u] || { displayName: u, online: false };
-    const chat = chats[u] || {};
-    const item = makeChatItem(u, info, chat);
-    sidebarEl.appendChild(item.cloneNode(true));
-    const item2 = makeChatItem(u, info, chat);
-    mobileEl.appendChild(item2);
+  [sEl, mEl].forEach(el => {
+    el.innerHTML = '';
+    if (chatUsers.length === 0) {
+      el.innerHTML = '<div style="padding:24px;text-align:center;color:#aaa;font-size:13px">Используй поиск чтобы найти собеседника</div>';
+      return;
+    }
+    chatUsers.forEach(u => {
+      const info = allUsers[u] || { displayName: u, online: false };
+      const chat = chats[u] || {};
+      const item = makeChatItem(u, info, chat);
+      el.appendChild(item);
+    });
   });
-
-  // Клики
   document.querySelectorAll('.chat-item').forEach(el => {
     el.addEventListener('click', () => openChat(el.dataset.user));
   });
 }
 
 function makeChatItem(username, info, chat) {
-  const isActive = username === currentChat;
   const div = document.createElement('div');
-  div.className = 'chat-item' + (isActive ? ' active' : '');
+  div.className = 'chat-item' + (username === currentChat ? ' active' : '');
   div.dataset.user = username;
   div.innerHTML = `
     <div class="chat-avatar">${info.displayName[0].toUpperCase()}</div>
@@ -398,21 +417,17 @@ function makeChatItem(username, info, chat) {
 function openChat(username) {
   currentChat = username;
   if (chats[username]) chats[username].unread = 0;
-
   const info = allUsers[username] || { displayName: username, online: false };
-
-  // Обновляем шапку чата
   document.getElementById('paneAvatar').textContent = info.displayName[0].toUpperCase();
   document.getElementById('paneName').textContent = info.displayName;
   document.getElementById('paneSub').textContent = '@' + username + (info.online ? ' · онлайн' : '');
   document.getElementById('messages').innerHTML = '';
-
-  if (isMobile()) {
-    document.getElementById('mobileChatlist').style.display = 'none';
-  }
+  if (isMobile()) document.getElementById('mobileChatlist').style.display = 'none';
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('chatPane').style.display = 'flex';
-
+  // Очистить поиск
+  if (document.getElementById('searchInput')) document.getElementById('searchInput').value = '';
+  if (document.getElementById('mobileSearchInput')) document.getElementById('mobileSearchInput').value = '';
   renderLists();
   ws.send(JSON.stringify({ type: 'get_history', with: username }));
   ws.send(JSON.stringify({ type: 'read', with: username }));
@@ -422,7 +437,6 @@ function openChat(username) {
 function renderHistory(withUser, msgs) {
   if (withUser !== currentChat) return;
   document.getElementById('messages').innerHTML = '';
-  // Инициализируем chats если нужно
   if (msgs.length && !chats[withUser]) chats[withUser] = {};
   if (msgs.length) {
     const last = msgs[msgs.length-1];
@@ -437,45 +451,23 @@ function addBubble(m) {
   const isMe = m.from === currentUser;
   const div = document.createElement('div');
   div.className = 'msg ' + (isMe ? 'msg-me' : 'msg-other');
-
   let content = '';
   if (m.fileUrl) {
     const isImage = m.fileType && m.fileType.startsWith('image/');
-    if (isImage) {
-      content = `<img class="msg-img" src="${m.fileUrl}" onclick="window.open('${m.fileUrl}')">`;
-    } else {
-      content = `<a class="msg-file" href="${m.fileUrl}" download="${m.fileName}" target="_blank">
-        <span class="msg-file-icon">📎</span>
-        <span class="msg-file-name">${m.fileName}</span>
-      </a>`;
-    }
-    if (m.text) content += `<div style="margin-top:4px">${m.text}</div>`;
+    if (isImage) content = `<img class="msg-img" src="${m.fileUrl}" onclick="window.open('${m.fileUrl}')">`;
+    else content = `<a class="msg-file" href="${m.fileUrl}" download="${m.fileName}" target="_blank"><span>📎</span><span class="msg-file-name">${m.fileName}</span></a>`;
+    if (m.text) content += `<div style="margin-top:4px">${esc(m.text)}</div>`;
   } else {
-    content = `<div>${escHtml(m.text)}</div>`;
+    content = `<div>${esc(m.text)}</div>`;
   }
-
   const statusEl = isMe ? `<span class="msg-status${m.status==='read'?' read':''}" data-id="${m.id}">${statusIcon(m.status)}</span>` : '';
-
-  div.innerHTML = `
-    <div class="msg-bubble">${content}</div>
-    <div class="msg-meta">
-      <span class="msg-time">${m.time}</span>
-      ${statusEl}
-    </div>
-  `;
+  div.innerHTML = `<div class="msg-bubble">${content}</div><div class="msg-meta"><span class="msg-time">${m.time}</span>${statusEl}</div>`;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
 }
 
-function statusIcon(s) {
-  if (s === 'read') return '✓✓';
-  if (s === 'delivered') return '✓✓';
-  return '✓';
-}
-
-function escHtml(t) {
-  return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+function statusIcon(s) { return s === 'read' ? '✓✓' : s === 'delivered' ? '✓✓' : '✓'; }
+function esc(t) { return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function sendMsg() {
   const input = document.getElementById('msgInput');
@@ -494,7 +486,7 @@ async function sendFile(input) {
     const r = await fetch('/upload', { method: 'POST', body: formData });
     const d = await r.json();
     ws.send(JSON.stringify({ type: 'message', to: currentChat, fileUrl: d.url, fileName: d.name, fileType: file.type }));
-  } catch(e) { alert('Ошибка загрузки файла'); }
+  } catch(e) { alert('Ошибка загрузки'); }
   input.value = '';
 }
 
@@ -503,16 +495,13 @@ async function loadVapidKey() {
   try { const r = await fetch('/vapid-public-key'); const d = await r.json(); vapidKey = d.key; } catch {}
   checkNotifStatus();
 }
-
 function checkNotifStatus() {
   const btn = document.getElementById('notifBtn');
   if (!('Notification' in window) || !('serviceWorker' in navigator)) { btn.style.display='none'; return; }
   if (Notification.permission === 'granted') { btn.textContent = '🔔'; btn.onclick = testNotif; }
   else if (Notification.permission === 'denied') { btn.style.display='none'; }
 }
-
 async function requestNotif() {
-  if (!('serviceWorker' in navigator)) return;
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') { checkNotifStatus(); return; }
   try {
@@ -523,21 +512,17 @@ async function requestNotif() {
     checkNotifStatus();
   } catch(e) { alert('Ошибка: ' + e.message); }
 }
-
 function testNotif() { new Notification('Егерь', { body: 'Уведомления работают! 🎉' }); }
-
-function urlBase64ToUint8Array(base64String) {
-  const base64 = base64String.replace(/-/g, '+').replace(/_/g, '/');
-  const padding = '='.repeat((4 - base64.length % 4) % 4);
-  const rawData = atob(base64 + padding);
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+function urlBase64ToUint8Array(b) {
+  const base64 = b.replace(/-/g,'+').replace(/_/g,'/');
+  const pad = '='.repeat((4-base64.length%4)%4);
+  const raw = atob(base64+pad);
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
 }
 
 // ── Init ──────────────────────────────────────────────────
-const session = loadSession();
-if (session.username && session.password) {
-  connect({ type: 'login', username: session.username, password: session.password }, null);
-}
+const s = loadSession();
+if (s.username && s.password) connect({ type: 'login', username: s.username, password: s.password }, null);
 </script>
 </body>
 </html>
