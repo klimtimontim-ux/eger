@@ -9,23 +9,15 @@ const VAPID_PRIVATE = process.env.VAPID_PRIVATE;
 
 webpush.setVapidDetails('mailto:test@example.com', VAPID_PUBLIC, VAPID_PRIVATE);
 
-// ─── Хранилище ────────────────────────────────────────────
-const users = {};         // { username: password }
-const messages = {};      // { 'user1:user2': [ {from, text, time} ] }
-const subscriptions = {}; // { username: pushSubscription }
+const users = {};
+const messages = {};
+const subscriptions = {};
 
-function chatKey(a, b) {
-  return [a, b].sort().join(':');
-}
+function chatKey(a, b) { return [a, b].sort().join(':'); }
 
-// ─── HTTP ─────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
-  if (req.method === 'GET' && req.url === '/') {
-    serveFile(res, 'index.html', 'text/html'); return;
-  }
-  if (req.method === 'GET' && req.url === '/sw.js') {
-    serveFile(res, 'sw.js', 'application/javascript'); return;
-  }
+  if (req.method === 'GET' && req.url === '/') { serveFile(res, 'index.html', 'text/html'); return; }
+  if (req.method === 'GET' && req.url === '/sw.js') { serveFile(res, 'sw.js', 'application/javascript'); return; }
   if (req.method === 'GET' && req.url === '/vapid-public-key') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ key: VAPID_PUBLIC })); return;
@@ -40,17 +32,16 @@ function serveFile(res, filename, mime) {
   res.end(fs.readFileSync(filePath));
 }
 
-// ─── WebSocket ────────────────────────────────────────────
 const wss = new WebSocketServer({ server });
-const clients = new Map(); // username → ws
+const clients = new Map();
 
 wss.on('connection', (ws) => {
   let myName = null;
 
- ws.on('message', (raw) => {
+  ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
-    console.log(`[msg] type=${msg.type} from=${myName}`);
+
     switch (msg.type) {
 
       case 'register': {
@@ -90,14 +81,9 @@ wss.on('connection', (ws) => {
         const entry = { from: myName, text, time: now() };
         messages[key].push(entry);
         if (messages[key].length > 500) messages[key].shift();
-
         send(ws, { type: 'message', with: to, ...entry });
-
         const toWs = clients.get(to);
-        if (toWs && toWs.readyState === 1) {
-          send(toWs, { type: 'message', with: myName, ...entry });
-        }
-
+        if (toWs && toWs.readyState === 1) send(toWs, { type: 'message', with: myName, ...entry });
         sendPush(to, myName, text);
         break;
       }
@@ -105,46 +91,31 @@ wss.on('connection', (ws) => {
       case 'subscribe': {
         if (!myName) return;
         subscriptions[myName] = msg.subscription;
-        console.log(`[sub] ${myName} подписался, всего подписок: ${Object.keys(subscriptions).length}`);
         break;
       }
     }
   });
 
   ws.on('close', () => {
-    if (myName) {
-      clients.delete(myName);
-      broadcastUsers();
-      myName = null;
-    }
+    if (myName) { clients.delete(myName); broadcastUsers(); myName = null; }
   });
 });
 
-function send(ws, obj) {
-  if (ws.readyState === 1) ws.send(JSON.stringify(obj));
-}
+function send(ws, obj) { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); }
 
 function broadcastUsers() {
   const online = [...clients.keys()];
   const allUsers = Object.keys(users);
   const payload = JSON.stringify({ type: 'users', online, all: allUsers });
-  for (const [, ws] of clients) {
-    if (ws.readyState === 1) ws.send(payload);
-  }
+  for (const [, ws] of clients) { if (ws.readyState === 1) ws.send(payload); }
 }
 
 async function sendPush(to, from, text) {
   const sub = subscriptions[to];
-  console.log(`[push] to=${to} sub=${sub ? 'есть' : 'НЕТ'}`);
   if (!sub) return;
   try {
-    await webpush.sendNotification(sub, JSON.stringify({
-      title: `Егерь — ${from}`,
-      body: text
-    }));
-    console.log(`[push] отправлен ${to}`);
+    await webpush.sendNotification(sub, JSON.stringify({ title: `Егерь — ${from}`, body: text }));
   } catch (e) {
-    console.log(`[push] ошибка ${to}:`, e.statusCode, e.message);
     if (e.statusCode === 410) delete subscriptions[to];
   }
 }
