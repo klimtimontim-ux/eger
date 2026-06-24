@@ -6,74 +6,145 @@ const webpush = require('web-push');
 
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE;
-
 webpush.setVapidDetails('mailto:test@example.com', VAPID_PUBLIC, VAPID_PRIVATE);
 
-const users = {};
-const messages = {};
+const users = {};      // { username: { password, displayName, bio, avatarUrl } }
+const messages = {};   // { chatKey: [...] }
 const subscriptions = {};
 let msgCounter = 0;
 
 function chatKey(a, b) { return [a, b].sort().join(':'); }
 
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
+
 const server = http.createServer((req, res) => {
-  if (req.method === 'GET' && req.url === '/') { serveFile(res, 'index.html', 'text/html'); return; }
-  if (req.method === 'GET' && req.url === '/sw.js') { serveFile(res, 'sw.js', 'application/javascript'); return; }
-  if (req.method === 'GET' && req.url === '/icon.png') { serveFile(res, 'icon.png', 'image/png'); return; }
-  if (req.method === 'GET' && req.url === '/vapid-public-key') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ key: VAPID_PUBLIC })); return;
+  const url = new URL(req.url, 'http://x');
+
+  // Static files
+  const staticMap = { '/': 'index.html', '/sw.js': 'sw.js', '/icon.png': 'icon.png' };
+  if (req.method === 'GET' && staticMap[url.pathname]) {
+    const mimes = { '.html':'text/html', '.js':'application/javascript', '.png':'image/png' };
+    const file = staticMap[url.pathname];
+    const ext = path.extname(file) || '.html';
+    serveFile(res, file, mimes[ext] || 'text/plain'); return;
   }
-  // Поиск пользователей
-  if (req.method === 'GET' && req.url.startsWith('/search?')) {
-    const q = new URL(req.url, 'http://x').searchParams.get('q') || '';
+
+  // VAPID
+  if (req.method === 'GET' && url.pathname === '/vapid-public-key') {
+    json(res, { key: VAPID_PUBLIC }); return;
+  }
+
+  // User search
+  if (req.method === 'GET' && url.pathname === '/search') {
+    const q = (url.searchParams.get('q') || '').toLowerCase();
     const results = Object.keys(users)
-      .filter(u => u.toLowerCase().includes(q.toLowerCase()) || users[u].displayName.toLowerCase().includes(q.toLowerCase()))
-      .map(u => ({ username: u, displayName: users[u].displayName }));
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(results)); return;
+      .filter(u => u.toLowerCase().includes(q) || users[u].displayName.toLowerCase().includes(q))
+      .map(u => ({ username: u, displayName: users[u].displayName, avatarUrl: users[u].avatarUrl || null }));
+    json(res, results); return;
   }
-  if (req.method === 'POST' && req.url === '/upload') {
-    const chunks = [];
-    req.on('data', c => chunks.push(c));
-    req.on('end', () => {
-      const buf = Buffer.concat(chunks);
+
+  // Get user profile
+  if (req.method === 'GET' && url.pathname.startsWith('/profile/')) {
+    const username = url.pathname.slice(9);
+    if (!users[username]) { res.writeHead(404); res.end('Not found'); return; }
+    const { password, ...pub } = users[username];
+    json(res, pub); return;
+  }
+
+  // File upload (avatar, image, video, file)
+  if (req.method === 'POST' && url.pathname === '/upload') {
+    readBody(req, (buf) => {
       const boundary = req.headers['content-type'].split('boundary=')[1];
       const parts = parseParts(buf, boundary);
       if (!parts.file) { res.writeHead(400); res.end('no file'); return; }
-      const filename = `${Date.now()}_${parts.filename || 'file'}`;
-      const uploadDir = path.join(__dirname, 'uploads');
-      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-      fs.writeFileSync(path.join(uploadDir, filename), parts.file);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ url: `/file/${filename}`, name: parts.filename }));
-    });
-    return;
+      const ext = path.extname(parts.filename || '').toLowerCase();
+      const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`;
+      fs.writeFileSync(path.join(UPLOAD_DIR, filename), parts.file);
+      const fileUrl = `/file/${filename}`;
+      // If avatar update
+      if (parts.type === 'avatar' && parts.username && users[parts.username]) {
+        users[parts.username].avatarUrl = fileUrl;
+        broadcastUsers();
+      }
+      json(res, { url: fileUrl, name: parts.filename, ext });
+    }); return;
   }
-  if (req.method === 'GET' && req.url.startsWith('/file/')) {
-    const filename = req.url.slice(6);
-    const filePath = path.join(__dirname, 'uploads', filename);
+
+  // Update profile
+  if (req.method === 'POST' && url.pathname === '/profile') {
+    readBody(req, (buf) => {
+      try {
+        const data = JSON.parse(buf.toString());
+        const { username, password, displayName, bio } = data;
+        if (!users[username] || users[username].password !== password) { res.writeHead(403); res.end('Forbidden'); return; }
+        if (displayName) users[username].displayName = displayName;
+        if (bio !== undefined) users[username].bio = bio;
+        broadcastUsers();
+        json(res, { ok: true });
+      } catch { res.writeHead(400); res.end('Bad JSON'); }
+    }); return;
+  }
+
+  // Serve uploaded files
+  if (req.method === 'GET' && url.pathname.startsWith('/file/')) {
+    const filename = url.pathname.slice(6);
+    const filePath = path.join(UPLOAD_DIR, filename);
     if (!fs.existsSync(filePath)) { res.writeHead(404); res.end('Not found'); return; }
-    res.writeHead(200);
-    fs.createReadStream(filePath).pipe(res);
+    const ext = path.extname(filename).toLowerCase();
+    const mimes = { '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.gif':'image/gif','.webp':'image/webp','.mp4':'video/mp4','.webm':'video/webm','.mov':'video/mp4','.pdf':'application/pdf' };
+    const mime = mimes[ext] || 'application/octet-stream';
+    
+    // Range support for video
+    const stat = fs.statSync(filePath);
+    const rangeHeader = req.headers['range'];
+    if (rangeHeader && mime.startsWith('video')) {
+      const [startStr, endStr] = rangeHeader.replace('bytes=','').split('-');
+      const start = parseInt(startStr);
+      const end = endStr ? parseInt(endStr) : stat.size - 1;
+      res.writeHead(206, { 'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Accept-Ranges':'bytes', 'Content-Length': end-start+1, 'Content-Type': mime });
+      fs.createReadStream(filePath, { start, end }).pipe(res);
+    } else {
+      res.writeHead(200, { 'Content-Type': mime, 'Content-Length': stat.size, 'Accept-Ranges':'bytes' });
+      fs.createReadStream(filePath).pipe(res);
+    }
     return;
   }
+
   res.writeHead(404); res.end('Not found');
 });
+
+function readBody(req, cb) {
+  const chunks = [];
+  req.on('data', c => chunks.push(c));
+  req.on('end', () => cb(Buffer.concat(chunks)));
+}
+
+function json(res, data) {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(data));
+}
+
+function serveFile(res, filename, mime) {
+  const filePath = path.join(__dirname, filename);
+  if (!fs.existsSync(filePath)) { res.writeHead(404); res.end('Not found'); return; }
+  res.writeHead(200, { 'Content-Type': mime });
+  res.end(fs.readFileSync(filePath));
+}
 
 function parseParts(buf, boundary) {
   const result = {};
   const bnd = Buffer.from('--' + boundary);
   let pos = 0;
   while (pos < buf.length) {
-    const start = indexOf(buf, bnd, pos);
+    const start = bufIndexOf(buf, bnd, pos);
     if (start === -1) break;
     pos = start + bnd.length + 2;
-    const headerEnd = indexOf(buf, Buffer.from('\r\n\r\n'), pos);
+    const headerEnd = bufIndexOf(buf, Buffer.from('\r\n\r\n'), pos);
     if (headerEnd === -1) break;
     const headers = buf.slice(pos, headerEnd).toString();
     pos = headerEnd + 4;
-    const nextBnd = indexOf(buf, bnd, pos);
+    const nextBnd = bufIndexOf(buf, bnd, pos);
     const dataEnd = nextBnd === -1 ? buf.length : nextBnd - 2;
     const data = buf.slice(pos, dataEnd);
     pos = nextBnd;
@@ -87,7 +158,7 @@ function parseParts(buf, boundary) {
   return result;
 }
 
-function indexOf(buf, search, start = 0) {
+function bufIndexOf(buf, search, start = 0) {
   for (let i = start; i <= buf.length - search.length; i++) {
     let found = true;
     for (let j = 0; j < search.length; j++) { if (buf[i+j] !== search[j]) { found = false; break; } }
@@ -96,13 +167,7 @@ function indexOf(buf, search, start = 0) {
   return -1;
 }
 
-function serveFile(res, filename, mime) {
-  const filePath = path.join(__dirname, filename);
-  if (!fs.existsSync(filePath)) { res.writeHead(404); res.end('Not found'); return; }
-  res.writeHead(200, { 'Content-Type': mime });
-  res.end(fs.readFileSync(filePath));
-}
-
+// WebSocket
 const wss = new WebSocketServer({ server });
 const clients = new Map();
 
@@ -119,10 +184,10 @@ wss.on('connection', (ws) => {
         if (!username || !password) return send(ws, { type: 'error', text: 'Заполни все поля' });
         if (!/^[a-zA-Z0-9_]+$/.test(username)) return send(ws, { type: 'error', text: 'Юзернейм: только буквы, цифры и _' });
         if (users[username]) return send(ws, { type: 'error', text: 'Юзернейм занят' });
-        users[username] = { password, displayName: displayName || username };
+        users[username] = { password, displayName: displayName || username, bio: '', avatarUrl: null };
         myName = username;
         clients.set(username, ws);
-        send(ws, { type: 'auth_ok', username, displayName: users[username].displayName });
+        send(ws, { type: 'auth_ok', username, displayName: users[username].displayName, avatarUrl: null });
         broadcastUsers();
         break;
       }
@@ -131,23 +196,22 @@ wss.on('connection', (ws) => {
         if (!users[username] || users[username].password !== password) return send(ws, { type: 'error', text: 'Неверные данные' });
         myName = username;
         clients.set(username, ws);
-        send(ws, { type: 'auth_ok', username, displayName: users[username].displayName });
+        send(ws, { type: 'auth_ok', username, displayName: users[username].displayName, avatarUrl: users[username].avatarUrl || null });
         broadcastUsers();
         break;
       }
       case 'get_history': {
-        const { with: other } = msg;
-        const key = chatKey(myName, other);
-        send(ws, { type: 'history', with: other, messages: messages[key] || [] });
-        markRead(myName, other);
+        const key = chatKey(myName, msg.with);
+        send(ws, { type: 'history', with: msg.with, messages: messages[key] || [] });
+        markRead(myName, msg.with);
         break;
       }
       case 'message': {
         if (!myName) return;
-        const { to, text, fileUrl, fileName, fileType } = msg;
+        const { to, text, fileUrl, fileName, fileType, isVideo } = msg;
         const key = chatKey(myName, to);
         if (!messages[key]) messages[key] = [];
-        const entry = { id: ++msgCounter, from: myName, text: text || '', fileUrl: fileUrl || null, fileName: fileName || null, fileType: fileType || null, time: now(), status: 'sent' };
+        const entry = { id: ++msgCounter, from: myName, text: text||'', fileUrl: fileUrl||null, fileName: fileName||null, fileType: fileType||null, isVideo: isVideo||false, time: now(), status: 'sent' };
         messages[key].push(entry);
         if (messages[key].length > 500) messages[key].shift();
         send(ws, { type: 'message', with: to, ...entry });
@@ -157,25 +221,15 @@ wss.on('connection', (ws) => {
           entry.status = 'delivered';
           send(ws, { type: 'status', id: entry.id, with: to, status: 'delivered' });
         }
-        sendPush(to, myName, text || `📎 ${fileName}`);
+        sendPush(to, myName, text || (isVideo ? '🎥 Видео' : `📎 ${fileName}`));
         break;
       }
-      case 'read': {
-        if (!myName) return;
-        markRead(myName, msg.with);
-        break;
-      }
-      case 'subscribe': {
-        if (!myName) return;
-        subscriptions[myName] = msg.subscription;
-        break;
-      }
+      case 'read': { if (myName) markRead(myName, msg.with); break; }
+      case 'subscribe': { if (myName) subscriptions[myName] = msg.subscription; break; }
     }
   });
 
-  ws.on('close', () => {
-    if (myName) { clients.delete(myName); broadcastUsers(); myName = null; }
-  });
+  ws.on('close', () => { if (myName) { clients.delete(myName); broadcastUsers(); myName = null; } });
 });
 
 function markRead(reader, other) {
@@ -184,7 +238,7 @@ function markRead(reader, other) {
   if (!msgs) return;
   const ids = [];
   msgs.forEach(m => { if (m.from === other && m.status !== 'read') { m.status = 'read'; ids.push(m.id); } });
-  if (ids.length === 0) return;
+  if (!ids.length) return;
   const otherWs = clients.get(other);
   if (otherWs && otherWs.readyState === 1) send(otherWs, { type: 'read', with: reader, ids });
 }
@@ -193,7 +247,9 @@ function send(ws, obj) { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); 
 
 function broadcastUsers() {
   const online = [...clients.keys()];
-  const allUsers = Object.keys(users).map(u => ({ username: u, displayName: users[u].displayName, online: online.includes(u) }));
+  const allUsers = Object.keys(users).map(u => ({
+    username: u, displayName: users[u].displayName, online: online.includes(u), avatarUrl: users[u].avatarUrl || null
+  }));
   const payload = JSON.stringify({ type: 'users', users: allUsers });
   for (const [, ws] of clients) { if (ws.readyState === 1) ws.send(payload); }
 }
@@ -201,10 +257,9 @@ function broadcastUsers() {
 async function sendPush(to, from, text) {
   const sub = subscriptions[to];
   if (!sub) return;
-  const fromDisplay = users[from] ? users[from].displayName : from;
-  try {
-    await webpush.sendNotification(sub, JSON.stringify({ title: `Егерь — ${fromDisplay}`, body: text }));
-  } catch (e) { if (e.statusCode === 410) delete subscriptions[to]; }
+  const fromDisplay = users[from]?.displayName || from;
+  try { await webpush.sendNotification(sub, JSON.stringify({ title: `Егерь — ${fromDisplay}`, body: text })); }
+  catch (e) { if (e.statusCode === 410) delete subscriptions[to]; }
 }
 
 function now() {
