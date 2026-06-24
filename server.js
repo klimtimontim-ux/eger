@@ -9,29 +9,35 @@ const VAPID_PRIVATE = process.env.VAPID_PRIVATE;
 
 webpush.setVapidDetails('mailto:test@example.com', VAPID_PUBLIC, VAPID_PRIVATE);
 
-// { username: { password, displayName } }
 const users = {};
-// { 'user1:user2': [ {id, from, text, time, status} ] }
 const messages = {};
 const subscriptions = {};
-
 let msgCounter = 0;
+
 function chatKey(a, b) { return [a, b].sort().join(':'); }
 
 const server = http.createServer((req, res) => {
   if (req.method === 'GET' && req.url === '/') { serveFile(res, 'index.html', 'text/html'); return; }
   if (req.method === 'GET' && req.url === '/sw.js') { serveFile(res, 'sw.js', 'application/javascript'); return; }
+  if (req.method === 'GET' && req.url === '/icon.png') { serveFile(res, 'icon.png', 'image/png'); return; }
   if (req.method === 'GET' && req.url === '/vapid-public-key') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ key: VAPID_PUBLIC })); return;
   }
-  // Загрузка файлов
+  // Поиск пользователей
+  if (req.method === 'GET' && req.url.startsWith('/search?')) {
+    const q = new URL(req.url, 'http://x').searchParams.get('q') || '';
+    const results = Object.keys(users)
+      .filter(u => u.toLowerCase().includes(q.toLowerCase()) || users[u].displayName.toLowerCase().includes(q.toLowerCase()))
+      .map(u => ({ username: u, displayName: users[u].displayName }));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(results)); return;
+  }
   if (req.method === 'POST' && req.url === '/upload') {
     const chunks = [];
     req.on('data', c => chunks.push(c));
     req.on('end', () => {
       const buf = Buffer.concat(chunks);
-      // Читаем multipart вручную
       const boundary = req.headers['content-type'].split('boundary=')[1];
       const parts = parseParts(buf, boundary);
       if (!parts.file) { res.writeHead(400); res.end('no file'); return; }
@@ -84,9 +90,7 @@ function parseParts(buf, boundary) {
 function indexOf(buf, search, start = 0) {
   for (let i = start; i <= buf.length - search.length; i++) {
     let found = true;
-    for (let j = 0; j < search.length; j++) {
-      if (buf[i+j] !== search[j]) { found = false; break; }
-    }
+    for (let j = 0; j < search.length; j++) { if (buf[i+j] !== search[j]) { found = false; break; } }
     if (found) return i;
   }
   return -1;
@@ -100,7 +104,7 @@ function serveFile(res, filename, mime) {
 }
 
 const wss = new WebSocketServer({ server });
-const clients = new Map(); // username → ws
+const clients = new Map();
 
 wss.on('connection', (ws) => {
   let myName = null;
@@ -110,7 +114,6 @@ wss.on('connection', (ws) => {
     try { msg = JSON.parse(raw); } catch { return; }
 
     switch (msg.type) {
-
       case 'register': {
         const { username, password, displayName } = msg;
         if (!username || !password) return send(ws, { type: 'error', text: 'Заполни все поля' });
@@ -123,7 +126,6 @@ wss.on('connection', (ws) => {
         broadcastUsers();
         break;
       }
-
       case 'login': {
         const { username, password } = msg;
         if (!users[username] || users[username].password !== password) return send(ws, { type: 'error', text: 'Неверные данные' });
@@ -133,57 +135,36 @@ wss.on('connection', (ws) => {
         broadcastUsers();
         break;
       }
-
       case 'get_history': {
         const { with: other } = msg;
         const key = chatKey(myName, other);
         send(ws, { type: 'history', with: other, messages: messages[key] || [] });
-        // Помечаем прочитанными
         markRead(myName, other);
         break;
       }
-
       case 'message': {
         if (!myName) return;
         const { to, text, fileUrl, fileName, fileType } = msg;
         const key = chatKey(myName, to);
         if (!messages[key]) messages[key] = [];
-        const entry = {
-          id: ++msgCounter,
-          from: myName,
-          text: text || '',
-          fileUrl: fileUrl || null,
-          fileName: fileName || null,
-          fileType: fileType || null,
-          time: now(),
-          status: 'sent'
-        };
+        const entry = { id: ++msgCounter, from: myName, text: text || '', fileUrl: fileUrl || null, fileName: fileName || null, fileType: fileType || null, time: now(), status: 'sent' };
         messages[key].push(entry);
         if (messages[key].length > 500) messages[key].shift();
-
-        // Отправителю
         send(ws, { type: 'message', with: to, ...entry });
-
-        // Получателю
         const toWs = clients.get(to);
         if (toWs && toWs.readyState === 1) {
           send(toWs, { type: 'message', with: myName, ...entry });
-          // Доставлено
           entry.status = 'delivered';
           send(ws, { type: 'status', id: entry.id, with: to, status: 'delivered' });
         }
-
         sendPush(to, myName, text || `📎 ${fileName}`);
         break;
       }
-
       case 'read': {
-        // Пользователь открыл чат и прочитал сообщения
         if (!myName) return;
         markRead(myName, msg.with);
         break;
       }
-
       case 'subscribe': {
         if (!myName) return;
         subscriptions[myName] = msg.subscription;
@@ -201,20 +182,11 @@ function markRead(reader, other) {
   const key = chatKey(reader, other);
   const msgs = messages[key];
   if (!msgs) return;
-  // Помечаем все сообщения от other как прочитанные
   const ids = [];
-  msgs.forEach(m => {
-    if (m.from === other && m.status !== 'read') {
-      m.status = 'read';
-      ids.push(m.id);
-    }
-  });
+  msgs.forEach(m => { if (m.from === other && m.status !== 'read') { m.status = 'read'; ids.push(m.id); } });
   if (ids.length === 0) return;
-  // Уведомляем отправителя
   const otherWs = clients.get(other);
-  if (otherWs && otherWs.readyState === 1) {
-    send(otherWs, { type: 'read', with: reader, ids });
-  }
+  if (otherWs && otherWs.readyState === 1) send(otherWs, { type: 'read', with: reader, ids });
 }
 
 function send(ws, obj) { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); }
@@ -232,9 +204,7 @@ async function sendPush(to, from, text) {
   const fromDisplay = users[from] ? users[from].displayName : from;
   try {
     await webpush.sendNotification(sub, JSON.stringify({ title: `Егерь — ${fromDisplay}`, body: text }));
-  } catch (e) {
-    if (e.statusCode === 410) delete subscriptions[to];
-  }
+  } catch (e) { if (e.statusCode === 410) delete subscriptions[to]; }
 }
 
 function now() {
