@@ -334,7 +334,7 @@ async function requestNotif() {
   if (!('serviceWorker' in navigator)) return alert('Нужен HTTPS');
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') { checkNotifStatus(); return; }
-  try {
+try {
     const reg = await navigator.serviceWorker.register('/sw.js');
     await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.subscribe({
@@ -342,9 +342,10 @@ async function requestNotif() {
       applicationServerKey: urlBase64ToUint8Array(vapidKey)
     });
     ws.send(JSON.stringify({ type: 'subscribe', subscription: sub }));
-alert('Подписка отправлена! endpoint: ' + sub.endpoint.slice(-20));
+    alert('Подписка отправлена! ' + sub.endpoint.slice(-20));
+    checkNotifStatus();
   } catch (e) {
-    alert('Ошибка подписки: ' + e.message);
+    alert('Ошибка: ' + e.message + ' | vapidKey: ' + vapidKey.slice(0,20));
   }
 }
 
