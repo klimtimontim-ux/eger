@@ -211,7 +211,7 @@ wss.on('connection', (ws) => {
         const { to, text, fileUrl, fileName, fileType, isVideo } = msg;
         const key = chatKey(myName, to);
         if (!messages[key]) messages[key] = [];
-        const entry = { id: ++msgCounter, from: myName, text: text||'', fileUrl: fileUrl||null, fileName: fileName||null, fileType: fileType||null, isVideo: isVideo||false, time: now(), status: 'sent' };
+        const entry = { id: ++msgCounter, from: myName, text: text||'', fileUrl: fileUrl||null, fileName: fileName||null, fileType: fileType||null, isVideo: isVideo||false, time: msg.time || now(), status: 'sent' };
         messages[key].push(entry);
         if (messages[key].length > 500) messages[key].shift();
         send(ws, { type: 'message', with: to, ...entry });
