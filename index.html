@@ -245,6 +245,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       </div>
     </div>
     <div class="hdr-actions">
+      <button class="icon-btn" onclick="openFavorites()" title="Избранное">⭐</button>
       <button class="icon-btn" onclick="openTheme()" title="Тема">🎨</button>
       <button class="icon-btn" id="notifBtn" onclick="requestNotif()" title="Уведомления">🔔</button>
       <button class="icon-btn" onclick="doLogout()" title="Выйти">⏻</button>
@@ -286,6 +287,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
             <div class="pane-name" id="paneName"></div>
             <div class="pane-sub" id="paneSub"></div>
           </div>
+                  <button class="icon-btn" id="favMsgBtn" onclick="saveToFavorites()" title="В избранное" style="margin-left:auto">⭐</button>
         </div>
         <div class="messages" id="messages"></div>
         <div class="chat-input-wrap">
@@ -306,6 +308,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+
+<!-- MODAL: Favorites -->
+<div class="modal-overlay" id="favoritesModal" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-title">⭐ Избранное <button class="modal-close" onclick="closeModal('favoritesModal')">✕</button></div>
+    <div id="favList" style="display:flex;flex-direction:column;gap:10px;max-height:60vh;overflow-y:auto"></div>
+    <div id="favEmpty" style="text-align:center;color:#aaa;font-size:13px;padding:30px">Пока ничего нет.<br>Нажми ⭐ в чате чтобы сохранить сообщение.</div>
   </div>
 </div>
 
@@ -747,15 +759,29 @@ async function sendFile(input){
 async function startVideoRec(){
   if(mediaRecorder){stopVideoRec();return;}
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
-    mediaRecorder=new MediaRecorder(stream);
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:true});
+    mediaRecorder=new MediaRecorder(stream,{mimeType:MediaRecorder.isTypeSupported('video/mp4')?'video/mp4':'video/webm'});
     recChunks=[];recSecs=0;
+    // Show live preview
+    let preview=document.getElementById('videoPreview');
+    if(!preview){
+      preview=document.createElement('video');
+      preview.id='videoPreview';
+      preview.autoplay=true;preview.muted=true;preview.playsInline=true;
+      preview.style.cssText='width:160px;height:160px;border-radius:18px;object-fit:cover;display:block;margin:6px 0;background:#000;transform:scaleX(-1)';
+      document.getElementById('recIndicator').parentNode.insertBefore(preview,document.getElementById('recIndicator'));
+    }
+    preview.srcObject=stream;preview.style.display='block';
     mediaRecorder.ondataavailable=e=>{if(e.data.size>0)recChunks.push(e.data);};
     mediaRecorder.onstop=async()=>{
       stream.getTracks().forEach(t=>t.stop());
-      const blob=new Blob(recChunks,{type:'video/webm'});
-      const fd=new FormData();fd.append('file',new File([blob],'video.webm',{type:'video/webm'}));
-      try{const r=await fetch('/upload',{method:'POST',body:fd});const d=await r.json();wsSend({type:'message',to:currentChat,fileUrl:d.url,fileName:'video.webm',fileType:'video/webm',isVideo:true,time:localTime()});}
+      const preview2=document.getElementById('videoPreview');
+      if(preview2){preview2.style.display='none';preview2.srcObject=null;}
+      const mime=mediaRecorder.mimeType||'video/webm';
+      const ext=mime.includes('mp4')?'mp4':'webm';
+      const blob=new Blob(recChunks,{type:mime});
+      const fd=new FormData();fd.append('file',new File([blob],`video.${ext}`,{type:mime}));
+      try{const r=await fetch('/upload',{method:'POST',body:fd});const d=await r.json();wsSend({type:'message',to:currentChat,fileUrl:d.url,fileName:d.name,fileType:mime,isVideo:true,time:localTime()});}
       catch{alert('Ошибка загрузки видео');}
       mediaRecorder=null;recChunks=[];
     };
@@ -768,17 +794,19 @@ async function startVideoRec(){
 
 function stopVideoRec(){
   if(!mediaRecorder)return;
-  mediaRecorder.stop();
+  const mr=mediaRecorder;
+  mr.stop();
   clearInterval(recTimer);
   document.getElementById('recIndicator').style.display='none';
   document.getElementById('msgInput').style.display='';
 }
 
 function cancelVideoRec(){
-  if(mediaRecorder){mediaRecorder.stream?.getTracks().forEach(t=>t.stop());mediaRecorder=null;}
+  if(mediaRecorder){try{mediaRecorder.stream?.getTracks().forEach(t=>t.stop());}catch{}mediaRecorder=null;}
   recChunks=[];clearInterval(recTimer);
   document.getElementById('recIndicator').style.display='none';
   document.getElementById('msgInput').style.display='';
+  const p=document.getElementById('videoPreview');if(p){p.style.display='none';p.srcObject=null;}
 }
 
 async function sendVideoFile(input){
@@ -942,6 +970,76 @@ function u8(b){const s=b.replace(/-/g,'+').replace(/_/g,'/'),pad='='.repeat((4-s
 function closeModal(id){document.getElementById(id).style.display='none';}
 document.addEventListener('click',e=>{
   if(e.target.classList.contains('modal-overlay'))e.target.style.display='none';
+});
+
+
+// ── Favorites ─────────────────────────────────────────────
+function getFavorites(){try{return JSON.parse(ss('efav_'+currentUser)||'[]');}catch{return[];}}
+function saveFavorites(favs){sw('efav_'+currentUser,JSON.stringify(favs));}
+
+function saveToFavorites(){
+  // Save selected messages or last message
+  const selected=document.querySelectorAll('.msg.selected');
+  let msgs=[];
+  if(selected.length){
+    selected.forEach(el=>{
+      msgs.push({text:el.querySelector('.msg-bubble')?.innerText||'',time:el.querySelector('.msg-time')?.textContent||'',from:el.classList.contains('msg-me')?currentUser:currentChat,savedAt:new Date().toLocaleString('ru')});
+    });
+    selected.forEach(el=>el.classList.remove('selected'));
+  } else {
+    // Save last message in chat
+    const bubbles=document.querySelectorAll('#messages .msg');
+    if(!bubbles.length){alert('Нет сообщений для сохранения');return;}
+    const last=bubbles[bubbles.length-1];
+    msgs.push({text:last.querySelector('.msg-bubble')?.innerText||'',time:last.querySelector('.msg-time')?.textContent||'',from:last.classList.contains('msg-me')?currentUser:currentChat,savedAt:new Date().toLocaleString('ru'),chatWith:currentChat});
+  }
+  const favs=getFavorites();
+  msgs.forEach(m=>favs.unshift(m));
+  saveFavorites(favs);
+  // Flash feedback
+  const btn=document.getElementById('favMsgBtn');
+  if(btn){btn.textContent='✅';setTimeout(()=>btn.textContent='⭐',1000);}
+}
+
+function openFavorites(){
+  const favs=getFavorites();
+  const list=document.getElementById('favList');
+  const empty=document.getElementById('favEmpty');
+  list.innerHTML='';
+  if(!favs.length){list.style.display='none';empty.style.display='block';}
+  else{
+    list.style.display='flex';empty.style.display='none';
+    favs.forEach((fav,i)=>{
+      const div=document.createElement('div');
+      div.style.cssText='background:var(--bg);border-radius:14px;padding:12px 14px;position:relative';
+      const info=allUsers[fav.from]||{displayName:fav.from};
+      div.innerHTML=`
+        <div style="font-size:11px;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between">
+          <span>${info.displayName}${fav.chatWith?' → '+(allUsers[fav.chatWith]?.displayName||fav.chatWith):''}</span>
+          <span>${fav.savedAt||''}</span>
+        </div>
+        <div style="font-size:14px;line-height:1.4">${esc(fav.text)}</div>
+        <button onclick="deleteFavorite(${i})" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:16px;color:#aaa">🗑</button>
+      `;
+      list.appendChild(div);
+    });
+  }
+  document.getElementById('favoritesModal').style.display='flex';
+}
+
+function deleteFavorite(i){
+  const favs=getFavorites();
+  favs.splice(i,1);
+  saveFavorites(favs);
+  openFavorites();
+}
+
+// Long press to select message
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('messages').addEventListener('contextmenu',e=>{
+    const msg=e.target.closest('.msg');
+    if(msg){e.preventDefault();msg.classList.toggle('selected');msg.style.outline=msg.classList.contains('selected')?'2px solid var(--accent)':'none';}
+  });
 });
 
 // ── Init ──────────────────────────────────────────────────
