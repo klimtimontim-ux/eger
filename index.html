@@ -820,15 +820,14 @@ function cancelVideoRec(){
 async function flipCamera(){
   recFacing=recFacing==='user'?'environment':'user';
   if(!mediaRecorder||mediaRecorder.state==='inactive')return;
-  // Pause timer, stop old stream without triggering onstop upload
+  // Stop old stream without triggering upload
   clearInterval(recTimer);
   const oldStream=mediaRecorder.stream;
-  // Detach onstop so it doesn't send
   mediaRecorder.onstop=null;
   try{mediaRecorder.stop();}catch{}
   oldStream?.getTracks().forEach(t=>t.stop());
   mediaRecorder=null;
-  // Keep existing chunks, just switch camera
+  recChunks=[];  // сбрасываем чанки — начинаем запись с новой камеры с нуля
   try{
     const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:recFacing},audio:true});
     const preview=document.getElementById('videoPreview');
