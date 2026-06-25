@@ -721,18 +721,24 @@ function sIcon(s){return(s==='read'||s==='delivered')?'✓✓':'✓';}
 function esc(t){return(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 // ── Send ──────────────────────────────────────────────────
+function localTime(){
+  const d=new Date();
+  return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+}
+
 function sendMsg(){
   const inp=document.getElementById('msgInput');
   const text=inp.value.trim();
   if(!text||!currentChat)return;
-  if(!wsSend({type:'message',to:currentChat,text})){connectWS(null);setTimeout(()=>wsSend({type:'message',to:currentChat,text}),1500);}
+  const time=localTime();
+  if(!wsSend({type:'message',to:currentChat,text,time})){connectWS(null);setTimeout(()=>wsSend({type:'message',to:currentChat,text,time}),1500);}
   inp.value='';inp.style.height='auto';
 }
 
 async function sendFile(input){
   const file=input.files[0];if(!file||!currentChat)return;
   const fd=new FormData();fd.append('file',file);
-  try{const r=await fetch('/upload',{method:'POST',body:fd});const d=await r.json();wsSend({type:'message',to:currentChat,fileUrl:d.url,fileName:d.name||file.name,fileType:file.type});}
+  try{const r=await fetch('/upload',{method:'POST',body:fd});const d=await r.json();wsSend({type:'message',to:currentChat,fileUrl:d.url,fileName:d.name||file.name,fileType:file.type,time:localTime()});}
   catch{alert('Ошибка загрузки');}
   input.value='';
 }
@@ -749,7 +755,7 @@ async function startVideoRec(){
       stream.getTracks().forEach(t=>t.stop());
       const blob=new Blob(recChunks,{type:'video/webm'});
       const fd=new FormData();fd.append('file',new File([blob],'video.webm',{type:'video/webm'}));
-      try{const r=await fetch('/upload',{method:'POST',body:fd});const d=await r.json();wsSend({type:'message',to:currentChat,fileUrl:d.url,fileName:'video.webm',fileType:'video/webm',isVideo:true});}
+      try{const r=await fetch('/upload',{method:'POST',body:fd});const d=await r.json();wsSend({type:'message',to:currentChat,fileUrl:d.url,fileName:'video.webm',fileType:'video/webm',isVideo:true,time:localTime()});}
       catch{alert('Ошибка загрузки видео');}
       mediaRecorder=null;recChunks=[];
     };
@@ -778,7 +784,7 @@ function cancelVideoRec(){
 async function sendVideoFile(input){
   const file=input.files[0];if(!file||!currentChat)return;
   const fd=new FormData();fd.append('file',file);
-  try{const r=await fetch('/upload',{method:'POST',body:fd});const d=await r.json();wsSend({type:'message',to:currentChat,fileUrl:d.url,fileName:file.name,fileType:file.type,isVideo:true});}
+  try{const r=await fetch('/upload',{method:'POST',body:fd});const d=await r.json();wsSend({type:'message',to:currentChat,fileUrl:d.url,fileName:file.name,fileType:file.type,isVideo:true,time:localTime()});}
   catch{alert('Ошибка загрузки');}
   input.value='';
 }
