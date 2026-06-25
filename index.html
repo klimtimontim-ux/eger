@@ -282,13 +282,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="chat-pane" id="chatPane">
         <div class="chat-pane-head">
           <button class="back-btn" onclick="goBack()">‹</button>
-          <div class="pane-avatar" id="paneAvatar" onclick="openUserProfile(currentChat)"></div>
-          <div class="pane-info" onclick="openUserProfile(currentChat)">
+          <div class="pane-avatar" id="paneAvatar" onclick="if(currentChat!=='__favorites__')openUserProfile(currentChat)"></div>
+          <div class="pane-info" onclick="if(currentChat!=='__favorites__')openUserProfile(currentChat)">
             <div class="pane-name" id="paneName"></div>
             <div class="pane-sub" id="paneSub"></div>
           </div>
-                  <button class="icon-btn" id="favMsgBtn" onclick="saveToFavorites()" title="В избранное" style="margin-left:auto">⭐</button>
-        </div>
+                </div>
         <div class="messages" id="messages"></div>
         <div class="chat-input-wrap">
           <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
@@ -298,6 +297,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="rec-indicator" id="recIndicator">
             <div class="rec-dot"></div>
             <span class="rec-time" id="recTime">0:00</span>
+            <button onclick="flipCamera()" style="background:none;border:none;cursor:pointer;font-size:18px" title="Перевернуть">🔄</button>
             <button onclick="stopVideoRec()" style="background:none;border:none;cursor:pointer;font-size:18px">✅</button>
             <button onclick="cancelVideoRec()" style="background:none;border:none;cursor:pointer;font-size:18px">❌</button>
           </div>
@@ -311,15 +311,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
 </div>
 
-
-<!-- MODAL: Favorites -->
-<div class="modal-overlay" id="favoritesModal" style="display:none">
-  <div class="modal" style="max-width:460px">
-    <div class="modal-title">⭐ Избранное <button class="modal-close" onclick="closeModal('favoritesModal')">✕</button></div>
-    <div id="favList" style="display:flex;flex-direction:column;gap:10px;max-height:60vh;overflow-y:auto"></div>
-    <div id="favEmpty" style="text-align:center;color:#aaa;font-size:13px;padding:30px">Пока ничего нет.<br>Нажми ⭐ в чате чтобы сохранить сообщение.</div>
-  </div>
-</div>
 
 <!-- MEDIA VIEWER -->
 <div class="media-overlay" id="mediaOverlay" style="display:none" onclick="closeMedia(event)">
@@ -540,6 +531,7 @@ function goBack(){
 
 // ── Avatar helper ─────────────────────────────────────────
 function renderAvatar(el,name,avatarUrl){
+  if(name==='⭐ Избранное'){el.innerHTML='<span>⭐</span>';el.style.background='#f59e0b';return;}
   if(!el)return;
   if(avatarUrl){
     el.innerHTML=`<img src="${avatarUrl}" alt="">`;
@@ -712,7 +704,13 @@ function addBubble(m){
   div.className='msg '+(isMe?'msg-me':'msg-other');
   let content='';
   if(m.isVideo&&m.fileUrl){
-    content=`<video class="msg-video-sq" src="${m.fileUrl}" onclick="openMedia('video','${m.fileUrl}')" playsinline muted loop></video>`;
+    const vid_id='vid_'+m.id;
+    content=`<div style="position:relative;width:180px;height:180px;border-radius:18px;overflow:hidden;cursor:pointer" onclick="toggleVideoSq('${vid_id}')">
+      <video id="${vid_id}" class="msg-video-sq" src="${m.fileUrl}" playsinline loop style="pointer-events:none"></video>
+      <div id="${vid_id}_play" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);border-radius:18px;transition:opacity .2s">
+        <div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;font-size:20px">▶</div>
+      </div>
+    </div>`;
   } else if(m.fileUrl){
     const isImg=m.fileType&&m.fileType.startsWith('image/');
     const isVid=m.fileType&&m.fileType.startsWith('video/');
@@ -730,6 +728,14 @@ function addBubble(m){
 }
 
 function sIcon(s){return(s==='read'||s==='delivered')?'✓✓':'✓';}
+
+function toggleVideoSq(id){
+  const vid=document.getElementById(id);
+  const overlay=document.getElementById(id+'_play');
+  if(!vid)return;
+  if(vid.paused){vid.play();if(overlay)overlay.style.opacity='0';}
+  else{vid.pause();if(overlay)overlay.style.opacity='1';}
+}
 function esc(t){return(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 // ── Send ──────────────────────────────────────────────────
@@ -756,10 +762,12 @@ async function sendFile(input){
 }
 
 // ── Video messages ────────────────────────────────────────
+let recFacing='user';
+
 async function startVideoRec(){
   if(mediaRecorder){stopVideoRec();return;}
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:true});
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:recFacing},audio:true});
     mediaRecorder=new MediaRecorder(stream,{mimeType:MediaRecorder.isTypeSupported('video/mp4')?'video/mp4':'video/webm'});
     recChunks=[];recSecs=0;
     // Show live preview
@@ -807,6 +815,40 @@ function cancelVideoRec(){
   document.getElementById('recIndicator').style.display='none';
   document.getElementById('msgInput').style.display='';
   const p=document.getElementById('videoPreview');if(p){p.style.display='none';p.srcObject=null;}
+}
+
+async function flipCamera(){
+  recFacing=recFacing==='user'?'environment':'user';
+  // Restart with new facing
+  if(mediaRecorder&&mediaRecorder.state!=='inactive'){
+    // Stop current stream
+    try{mediaRecorder.stream?.getTracks().forEach(t=>t.stop());}catch{}
+    clearInterval(recTimer);recSecs=0;document.getElementById('recTime').textContent='0:00';
+    recChunks=[];
+    // Get new stream
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:recFacing},audio:true});
+      const preview=document.getElementById('videoPreview');
+      if(preview){preview.srcObject=stream;preview.style.transform=recFacing==='user'?'scaleX(-1)':'none';}
+      const mime=MediaRecorder.isTypeSupported('video/mp4')?'video/mp4':'video/webm';
+      mediaRecorder=new MediaRecorder(stream,{mimeType:mime});
+      mediaRecorder.ondataavailable=e=>{if(e.data.size>0)recChunks.push(e.data);};
+      mediaRecorder.onstop=async()=>{
+        stream.getTracks().forEach(t=>t.stop());
+        const preview2=document.getElementById('videoPreview');
+        if(preview2){preview2.style.display='none';preview2.srcObject=null;}
+        const m2=mediaRecorder.mimeType||'video/webm';
+        const ext2=m2.includes('mp4')?'mp4':'webm';
+        const blob=new Blob(recChunks,{type:m2});
+        const fd=new FormData();fd.append('file',new File([blob],`video.${ext2}`,{type:m2}));
+        try{const r=await fetch('/upload',{method:'POST',body:fd});const d=await r.json();wsSend({type:'message',to:currentChat,fileUrl:d.url,fileName:d.name,fileType:m2,isVideo:true,time:localTime()});}
+        catch{alert('Ошибка загрузки видео');}
+        mediaRecorder=null;recChunks=[];
+      };
+      mediaRecorder.start();
+      recTimer=setInterval(()=>{recSecs++;const m=Math.floor(recSecs/60),s=recSecs%60;document.getElementById('recTime').textContent=m+':'+(s<10?'0':'')+s;},1000);
+    }catch(e){alert('Ошибка камеры: '+e.message);}
+  }
 }
 
 async function sendVideoFile(input){
@@ -973,74 +1015,45 @@ document.addEventListener('click',e=>{
 });
 
 
-// ── Favorites ─────────────────────────────────────────────
-function getFavorites(){try{return JSON.parse(ss('efav_'+currentUser)||'[]');}catch{return[];}}
-function saveFavorites(favs){sw('efav_'+currentUser,JSON.stringify(favs));}
 
-function saveToFavorites(){
-  // Save selected messages or last message
-  const selected=document.querySelectorAll('.msg.selected');
-  let msgs=[];
-  if(selected.length){
-    selected.forEach(el=>{
-      msgs.push({text:el.querySelector('.msg-bubble')?.innerText||'',time:el.querySelector('.msg-time')?.textContent||'',from:el.classList.contains('msg-me')?currentUser:currentChat,savedAt:new Date().toLocaleString('ru')});
-    });
-    selected.forEach(el=>el.classList.remove('selected'));
-  } else {
-    // Save last message in chat
-    const bubbles=document.querySelectorAll('#messages .msg');
-    if(!bubbles.length){alert('Нет сообщений для сохранения');return;}
-    const last=bubbles[bubbles.length-1];
-    msgs.push({text:last.querySelector('.msg-bubble')?.innerText||'',time:last.querySelector('.msg-time')?.textContent||'',from:last.classList.contains('msg-me')?currentUser:currentChat,savedAt:new Date().toLocaleString('ru'),chatWith:currentChat});
-  }
-  const favs=getFavorites();
-  msgs.forEach(m=>favs.unshift(m));
-  saveFavorites(favs);
-  // Flash feedback
-  const btn=document.getElementById('favMsgBtn');
-  if(btn){btn.textContent='✅';setTimeout(()=>btn.textContent='⭐',1000);}
-}
+// ── Favorites (self-chat) ─────────────────────────────────
+const FAV_ID = '__favorites__';
 
 function openFavorites(){
-  const favs=getFavorites();
-  const list=document.getElementById('favList');
-  const empty=document.getElementById('favEmpty');
-  list.innerHTML='';
-  if(!favs.length){list.style.display='none';empty.style.display='block';}
-  else{
-    list.style.display='flex';empty.style.display='none';
-    favs.forEach((fav,i)=>{
-      const div=document.createElement('div');
-      div.style.cssText='background:var(--bg);border-radius:14px;padding:12px 14px;position:relative';
-      const info=allUsers[fav.from]||{displayName:fav.from};
-      div.innerHTML=`
-        <div style="font-size:11px;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between">
-          <span>${info.displayName}${fav.chatWith?' → '+(allUsers[fav.chatWith]?.displayName||fav.chatWith):''}</span>
-          <span>${fav.savedAt||''}</span>
-        </div>
-        <div style="font-size:14px;line-height:1.4">${esc(fav.text)}</div>
-        <button onclick="deleteFavorite(${i})" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:16px;color:#aaa">🗑</button>
-      `;
-      list.appendChild(div);
-    });
+  // Inject fake "Избранное" user into allUsers if not there
+  allUsers[FAV_ID]={displayName:'⭐ Избранное',online:false,avatarUrl:null,isFav:true};
+  if(!chats[FAV_ID])chats[FAV_ID]={unread:0,pinned:true,lastMsg:'Мои заметки'};
+  openChat(FAV_ID);
+}
+
+// Patch wsSend for favorites - store locally
+const _wsSend=wsSend;
+window.wsSend=function(obj){
+  if(obj.type==='message'&&obj.to===FAV_ID){
+    // Store in localStorage
+    const key='efav_msgs_'+currentUser;
+    const msgs=JSON.parse(ss(key)||'[]');
+    const entry={id:Date.now(),from:currentUser,to:FAV_ID,text:obj.text||'',fileUrl:obj.fileUrl||null,fileName:obj.fileName||null,fileType:obj.fileType||null,isVideo:obj.isVideo||false,time:obj.time||localTime(),status:'read'};
+    msgs.push(entry);
+    sw(key,JSON.stringify(msgs));
+    // Show immediately
+    addBubble(entry);
+    // Update chat preview
+    if(!chats[FAV_ID])chats[FAV_ID]={unread:0,pinned:true};
+    chats[FAV_ID].lastMsg=entry.text||(entry.isVideo?'🎥':'📎 '+entry.fileName);
+    chats[FAV_ID].lastTime=entry.time;
+    saveChats();renderLists();
+    return true;
   }
-  document.getElementById('favoritesModal').style.display='flex';
-}
-
-function deleteFavorite(i){
-  const favs=getFavorites();
-  favs.splice(i,1);
-  saveFavorites(favs);
-  openFavorites();
-}
-
-// Long press to select message
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('messages').addEventListener('contextmenu',e=>{
-    const msg=e.target.closest('.msg');
-    if(msg){e.preventDefault();msg.classList.toggle('selected');msg.style.outline=msg.classList.contains('selected')?'2px solid var(--accent)':'none';}
-  });
-});
+  if(obj.type==='get_history'&&obj.with===FAV_ID){
+    const key='efav_msgs_'+currentUser;
+    const msgs=JSON.parse(ss(key)||'[]');
+    renderHistory(FAV_ID,msgs);
+    return true;
+  }
+  if(obj.type==='read'&&obj.with===FAV_ID)return true;
+  return _wsSend(obj);
+};
 
 // ── Init ──────────────────────────────────────────────────
 // Re-apply wallpaper when chat changes
