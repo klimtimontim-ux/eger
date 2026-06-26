@@ -64,7 +64,7 @@ input:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
 .messages, .sidebar-list, .mob-list-items { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 
 /* Sticker picker */
-.sticker-picker { position: absolute; bottom: 60px; left: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.14); display: none; z-index: 50; width: 300px; max-height: 220px; overflow-y: auto; flex-wrap: wrap; gap: 4px; }
+.sticker-picker { position: absolute; bottom: 60px; left: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.14); display: none; z-index: 50; width: 300px; max-height: 260px; overflow-y: auto; flex-direction: column; align-items: flex-start; gap: 4px; }
 .sticker-picker.open { display: flex; animation: modalIn .18s var(--ease) both; }
 .sticker-item { font-size: 30px; cursor: pointer; padding: 5px; border-radius: 10px; transition: background .12s, transform .1s; line-height: 1; }
 .sticker-item:hover { background: var(--bg); }
@@ -641,8 +641,11 @@ async function saveProfile(){
   const displayName=document.getElementById('profileName').value.trim();
   const bio=document.getElementById('profileBio').value.trim();
   if(!displayName)return;
+  // Fetch current profile to preserve bannerUrl
+  let bannerUrl=currentBannerUrl;
+  if(!bannerUrl){try{const pd=await fetch('/profile/'+currentUser).then(r=>r.json());bannerUrl=pd.bannerUrl||null;}catch{}}
   const body={username:currentUser,password:authCreds.password,displayName,bio};
-  if(currentBannerUrl)body.bannerUrl=currentBannerUrl;
+  if(bannerUrl)body.bannerUrl=bannerUrl;
   await fetch('/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   currentDisplay=displayName;
   document.getElementById('hdrName').textContent=displayName;
@@ -799,6 +802,8 @@ function addBubble(m){
     else if(isVid)content=`<video class="msg-video-sq" src="${m.fileUrl}" onclick="openMedia('video','${m.fileUrl}')" playsinline muted loop></video>`;
     else content=`<a class="msg-file" href="${m.fileUrl}" download="${m.fileName}" target="_blank"><span>📎</span><span class="msg-fname">${m.fileName||'Файл'}</span></a>`;
     if(m.text)content+=`<div style="margin-top:4px">${esc(m.text)}</div>`;
+  } else if(m.isSticker&&m.fileUrl){
+    content=`<img src="${m.fileUrl}" style="width:120px;height:120px;border-radius:14px;object-fit:cover;display:block;cursor:pointer" onclick="openMedia('img','${m.fileUrl}')">`;
   } else if(m.isSticker){
     content=`<div class="sticker-msg">${m.text}</div>`;
   } else {
@@ -1112,18 +1117,85 @@ const STICKERS = [
   '❄️','🌊','🌪️','🍀','🌸','🌺','🌻','🌹','🦋','🐝'
 ];
 
+function getCustomStickers(){try{return JSON.parse(ss('cstk_'+currentUser)||'[]');}catch{return[];}}
+function saveCustomStickers(s){sw('cstk_'+currentUser,JSON.stringify(s));}
+
 function toggleStickerPicker(){
   const picker=document.getElementById('stickerPicker');
   if(picker.classList.contains('open')){picker.classList.remove('open');return;}
-  if(!picker.innerHTML){
-    STICKERS.forEach(s=>{
-      const span=document.createElement('span');
-      span.className='sticker-item';span.textContent=s;
-      span.onclick=()=>sendSticker(s);
-      picker.appendChild(span);
-    });
-  }
+  renderStickerPicker();
   picker.classList.add('open');
+}
+
+function renderStickerPicker(){
+  const picker=document.getElementById('stickerPicker');
+  const custom=getCustomStickers();
+  picker.innerHTML=`
+    <div style="width:100%;display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:6px;flex-shrink:0">
+      <button onclick="showStickerTab('emoji')" id="stab_emoji" style="flex:1;padding:6px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid var(--accent)">😊 Эмодзи</button>
+      <button onclick="showStickerTab('custom')" id="stab_custom" style="flex:1;padding:6px;background:none;border:none;cursor:pointer;font-size:13px;color:var(--muted);border-bottom:2px solid transparent">📦 Мои</button>
+    </div>
+    <div id="stab_emoji_content" style="display:flex;flex-wrap:wrap;gap:2px;width:100%">
+      ${STICKERS.map(s=>`<span class="sticker-item" onclick="sendSticker('${s}')">${s}</span>`).join('')}
+    </div>
+    <div id="stab_custom_content" style="display:none;flex-direction:column;width:100%;gap:6px">
+      <button onclick="document.getElementById('customStickerInput').click()" style="width:100%;padding:8px;background:var(--bg);border:1.5px dashed var(--border);border-radius:10px;cursor:pointer;font-size:13px;color:var(--muted)">➕ Добавить стикер (картинку)</button>
+      <input type="file" id="customStickerInput" accept="image/*" style="display:none" onchange="addCustomSticker(this)">
+      <div id="customStickerGrid" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+  `;
+  renderCustomStickerGrid();
+}
+
+function showStickerTab(tab){
+  ['emoji','custom'].forEach(t=>{
+    document.getElementById('stab_'+t+'_content').style.display=t===tab?(t==='custom'?'flex':'flex'):'none';
+    const btn=document.getElementById('stab_'+t);
+    btn.style.color=t===tab?'var(--text)':'var(--muted)';
+    btn.style.borderBottom=t===tab?'2px solid var(--accent)':'2px solid transparent';
+  });
+  if(tab==='custom')renderCustomStickerGrid();
+}
+
+function renderCustomStickerGrid(){
+  const grid=document.getElementById('customStickerGrid');
+  if(!grid)return;
+  const custom=getCustomStickers();
+  grid.innerHTML='';
+  custom.forEach((url,i)=>{
+    const wrap=document.createElement('div');
+    wrap.style.cssText='position:relative;width:60px;height:60px';
+    wrap.innerHTML=`
+      <img src="${url}" style="width:60px;height:60px;border-radius:10px;object-fit:cover;cursor:pointer" onclick="sendCustomSticker('${url}')">
+      <button onclick="deleteCustomSticker(${i})" style="position:absolute;top:-4px;right:-4px;background:#ff4444;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">✕</button>
+    `;
+    grid.appendChild(wrap);
+  });
+}
+
+async function addCustomSticker(input){
+  const file=input.files[0];if(!file)return;
+  const fd=new FormData();fd.append('file',file);
+  const r=await fetch('/upload',{method:'POST',body:fd});
+  const d=await r.json();
+  const custom=getCustomStickers();
+  custom.push(d.url);
+  saveCustomStickers(custom);
+  renderCustomStickerGrid();
+  input.value='';
+}
+
+function deleteCustomSticker(i){
+  const custom=getCustomStickers();
+  custom.splice(i,1);
+  saveCustomStickers(custom);
+  renderCustomStickerGrid();
+}
+
+function sendCustomSticker(url){
+  if(!currentChat)return;
+  wsSend({type:'message',to:currentChat,fileUrl:url,fileType:'image/sticker',isSticker:true,time:localTime()});
+  document.getElementById('stickerPicker').classList.remove('open');
 }
 
 function sendSticker(emoji){
@@ -1134,7 +1206,7 @@ function sendSticker(emoji){
 
 document.addEventListener('click',e=>{
   const picker=document.getElementById('stickerPicker');
-  if(picker&&picker.classList.contains('open')&&!picker.contains(e.target)&&!e.target.closest('.attach-btn')){
+  if(picker&&picker.classList.contains('open')&&!picker.contains(e.target)&&!e.target.title?.includes('Стикеры')){
     picker.classList.remove('open');
   }
 });
@@ -1144,7 +1216,7 @@ let currentBannerUrl = null;
 
 async function uploadBanner(input){
   const file=input.files[0];if(!file)return;
-  const fd=new FormData();fd.append('file',file);fd.append('type','banner');fd.append('username',currentUser);
+  const fd=new FormData();fd.append('file',file);
   const r=await fetch('/upload',{method:'POST',body:fd});
   const d=await r.json();
   currentBannerUrl=d.url;
@@ -1152,8 +1224,9 @@ async function uploadBanner(input){
   const wrap=document.getElementById('myBannerWrap');
   wrap.innerHTML=`<img class="profile-banner-img" src="${d.url}"><div class="profile-banner-overlay">🖼 Сменить фон</div>`;
   wrap.onclick=()=>document.getElementById('bannerInput').click();
-  // Save to server profile
-  await fetch('/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:currentUser,password:authCreds.password,bannerUrl:d.url})});
+  // Save immediately to server
+  await fetch('/profile',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:currentUser,password:authCreds.password,displayName:currentDisplay,bannerUrl:d.url})});
   input.value='';
 }
 
