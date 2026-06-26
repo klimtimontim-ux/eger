@@ -22,8 +22,62 @@
   --bubble-me: var(--accent);
   --bubble-other: #eeeeee;
   --chat-bg: var(--bg);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+/* Smooth global */
+*, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+button { transition: opacity .15s var(--ease), background .15s var(--ease), transform .1s var(--ease); }
+button:active { transform: scale(0.93); opacity: .8; }
+input, textarea { transition: border-color .2s var(--ease), box-shadow .2s var(--ease); }
+input:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+
+/* Animate messages */
+@keyframes msgIn { from { opacity:0; transform: translateY(8px) scale(0.97); } to { opacity:1; transform: none; } }
+.msg { animation: msgIn .18s var(--ease) both; }
+
+/* Animate modal */
+@keyframes modalIn { from { opacity:0; transform: scale(0.95) translateY(10px); } to { opacity:1; transform: none; } }
+.modal { animation: modalIn .2s var(--ease) both; }
+
+/* Smooth sidebar items */
+.chat-item { transition: background .15s var(--ease), transform .1s var(--ease); }
+.chat-item:active { transform: scale(0.98); }
+
+/* Smooth avatar */
+.ci-avatar img, .hdr-avatar img, .pane-avatar img, .modal-avatar img, .profile-view-avatar img { transition: opacity .2s var(--ease); }
+
+/* Smooth scrollbar */
+.messages, .sidebar-list, .mob-list-items { scroll-behavior: smooth; }
+.messages::-webkit-scrollbar, .sidebar-list::-webkit-scrollbar { width: 3px; }
+.messages::-webkit-scrollbar-thumb, .sidebar-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,.12); border-radius: 3px; }
+
+/* Send button pulse */
+@keyframes sendPulse { 0%{transform:scale(1)} 50%{transform:scale(0.88)} 100%{transform:scale(1)} }
+.send-btn:active { animation: sendPulse .15s var(--ease); }
+
+/* Smooth video square */
+.msg-video-sq { transition: opacity .2s var(--ease); }
+
+/* iOS momentum scroll */
+.messages, .sidebar-list, .mob-list-items { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+
+/* Sticker picker */
+.sticker-picker { position: absolute; bottom: 60px; left: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.14); display: none; z-index: 50; width: 300px; max-height: 220px; overflow-y: auto; flex-wrap: wrap; gap: 4px; }
+.sticker-picker.open { display: flex; animation: modalIn .18s var(--ease) both; }
+.sticker-item { font-size: 30px; cursor: pointer; padding: 5px; border-radius: 10px; transition: background .12s, transform .1s; line-height: 1; }
+.sticker-item:hover { background: var(--bg); }
+.sticker-item:active { transform: scale(0.85); }
+.sticker-msg { font-size: 52px; line-height: 1; background: transparent !important; padding: 4px !important; }
+
+/* Profile banner */
+.profile-banner-wrap { position: relative; width: 100%; height: 100px; border-radius: 12px; overflow: hidden; margin-bottom: -44px; cursor: pointer; }
+.profile-banner-img { width: 100%; height: 100%; object-fit: cover; }
+.profile-banner-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .2s; font-size: 22px; }
+.profile-banner-wrap:hover .profile-banner-overlay { opacity: 1; }
+.view-banner-wrap { position: relative; width: 100%; height: 90px; border-radius: 12px; overflow: hidden; margin-bottom: -44px; }
+.view-banner-img { width: 100%; height: 100%; object-fit: cover; }
 
 /* ── AUTH ── */
 .auth-wrap { width: 100%; max-width: 380px; padding: 24px 20px; }
@@ -289,9 +343,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           </div>
                 </div>
         <div class="messages" id="messages"></div>
+        <div style="position:relative">
+          <div class="sticker-picker" id="stickerPicker"></div>
+        </div>
         <div class="chat-input-wrap">
           <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
           <button class="video-btn" onclick="startVideoRec()" id="videoRecBtn" title="Видео-сообщение">⬛</button>
+          <button class="attach-btn" onclick="toggleStickerPicker()" title="Стикеры">😊</button>
           <input type="file" id="fileInput" accept="image/*,video/*,.pdf,.doc,.docx,.zip" onchange="sendFile(this)">
           <input type="file" id="videoInput" accept="video/*" capture="user" onchange="sendVideoFile(this)">
           <div class="rec-indicator" id="recIndicator">
@@ -323,7 +381,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 <div class="modal-overlay" id="myProfileModal" style="display:none">
   <div class="modal">
     <div class="modal-title">Мой профиль <button class="modal-close" onclick="closeModal('myProfileModal')">✕</button></div>
-    <div class="modal-avatar" onclick="document.getElementById('avatarInput').click()">
+    <div class="profile-banner-wrap" id="myBannerWrap" onclick="document.getElementById('bannerInput').click()">
+      <div id="myBannerBg" style="width:100%;height:100%;background:linear-gradient(135deg,var(--accent),var(--accent2))"></div>
+      <div class="profile-banner-overlay">🖼 Сменить фон</div>
+    </div>
+    <input type="file" id="bannerInput" accept="image/*" style="display:none" onchange="uploadBanner(this)">
+    <div class="modal-avatar" onclick="document.getElementById('avatarInput').click()" style="margin-top:0;position:relative;z-index:1">
       <div id="myProfileAvatar" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff"></div>
       <div class="modal-avatar-hint">📷</div>
     </div>
@@ -338,8 +401,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 <!-- MODAL: User Profile -->
 <div class="modal-overlay" id="userProfileModal" style="display:none">
   <div class="modal">
-    <button class="modal-close" style="float:right;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)" onclick="closeModal('userProfileModal')">✕</button>
-    <div class="profile-banner"></div>
+    <button class="modal-close" style="float:right;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);position:relative;z-index:2" onclick="closeModal('userProfileModal')">✕</button>
+    <div class="view-banner-wrap" id="viewBannerWrap">
+      <div id="viewBannerBg" style="width:100%;height:100%;background:linear-gradient(135deg,var(--accent),var(--accent2))"></div>
+    </div>
     <div class="profile-view-avatar" id="viewAvatar"></div>
     <div class="profile-view-name" id="viewName"></div>
     <div class="profile-view-user" id="viewUser"></div>
@@ -546,7 +611,14 @@ function openMyProfile(){
   document.getElementById('profileName').value=currentDisplay;
   const bioEl=document.getElementById('profileBio');
   bioEl.value='';
-  fetch('/profile/'+currentUser).then(r=>r.json()).then(d=>{bioEl.value=d.bio||'';});
+  fetch('/profile/'+currentUser).then(r=>r.json()).then(d=>{
+    bioEl.value=d.bio||'';
+    if(d.bannerUrl){
+      const wrap=document.getElementById('myBannerWrap');
+      wrap.innerHTML=`<img class="profile-banner-img" src="${d.bannerUrl}"><div class="profile-banner-overlay">🖼 Сменить фон</div>`;
+      wrap.onclick=()=>document.getElementById('bannerInput').click();
+    }
+  });
   const av=document.getElementById('myProfileAvatar');
   if(currentAvatar){av.innerHTML=`<img src="${currentAvatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;av.style.background='none';}
   else{av.textContent=currentDisplay[0].toUpperCase();av.style.background='var(--accent2)';}
@@ -569,7 +641,9 @@ async function saveProfile(){
   const displayName=document.getElementById('profileName').value.trim();
   const bio=document.getElementById('profileBio').value.trim();
   if(!displayName)return;
-  await fetch('/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:currentUser,password:authCreds.password,displayName,bio})});
+  const body={username:currentUser,password:authCreds.password,displayName,bio};
+  if(currentBannerUrl)body.bannerUrl=currentBannerUrl;
+  await fetch('/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   currentDisplay=displayName;
   document.getElementById('hdrName').textContent=displayName;
   closeModal('myProfileModal');
@@ -584,6 +658,13 @@ async function openUserProfile(username){
   document.getElementById('viewName').textContent=d.displayName;
   document.getElementById('viewUser').textContent='@'+username;
   document.getElementById('viewBio').textContent=d.bio||'';
+  // Banner
+  const bannerWrap=document.getElementById('viewBannerWrap');
+  if(d.bannerUrl){
+    bannerWrap.innerHTML=`<img class="view-banner-img" src="${d.bannerUrl}">`;
+  } else {
+    bannerWrap.innerHTML='<div id="viewBannerBg" style="width:100%;height:100%;background:linear-gradient(135deg,var(--accent),var(--accent2))"></div>';
+  }
   document.getElementById('viewWriteBtn').onclick=()=>{closeModal('userProfileModal');openChat(username);};
   document.getElementById('userProfileModal').style.display='flex';
 }
@@ -718,6 +799,8 @@ function addBubble(m){
     else if(isVid)content=`<video class="msg-video-sq" src="${m.fileUrl}" onclick="openMedia('video','${m.fileUrl}')" playsinline muted loop></video>`;
     else content=`<a class="msg-file" href="${m.fileUrl}" download="${m.fileName}" target="_blank"><span>📎</span><span class="msg-fname">${m.fileName||'Файл'}</span></a>`;
     if(m.text)content+=`<div style="margin-top:4px">${esc(m.text)}</div>`;
+  } else if(m.isSticker){
+    content=`<div class="sticker-msg">${m.text}</div>`;
   } else {
     content=`<div>${esc(m.text)}</div>`;
   }
@@ -1016,6 +1099,63 @@ document.addEventListener('click',e=>{
 });
 
 
+
+// ── Stickers ─────────────────────────────────────────────
+const STICKERS = [
+  '😂','😍','🥰','😎','🤔','😭','🔥','❤️','👍','👎',
+  '🎉','💯','🤯','😤','🥲','😴','🤣','😅','🫡','🫶',
+  '🐶','🐱','🦊','🐸','🐼','🦁','🐯','🐨','🦄','🐙',
+  '🍕','🍔','🍣','🎂','🍩','🍪','☕','🧋','🍓','🍉',
+  '⚽','🏀','🎮','🎯','🎸','🎹','🎬','📸','🚀','⭐',
+  '💀','👻','🤖','👾','🎃','🌈','⚡','💫','🌙','☀️',
+  '🫠','🥴','😵','🤪','🤡','💩','🙈','🙉','🙊','🫣',
+  '❄️','🌊','🌪️','🍀','🌸','🌺','🌻','🌹','🦋','🐝'
+];
+
+function toggleStickerPicker(){
+  const picker=document.getElementById('stickerPicker');
+  if(picker.classList.contains('open')){picker.classList.remove('open');return;}
+  if(!picker.innerHTML){
+    STICKERS.forEach(s=>{
+      const span=document.createElement('span');
+      span.className='sticker-item';span.textContent=s;
+      span.onclick=()=>sendSticker(s);
+      picker.appendChild(span);
+    });
+  }
+  picker.classList.add('open');
+}
+
+function sendSticker(emoji){
+  if(!currentChat)return;
+  wsSend({type:'message',to:currentChat,text:emoji,isSticker:true,time:localTime()});
+  document.getElementById('stickerPicker').classList.remove('open');
+}
+
+document.addEventListener('click',e=>{
+  const picker=document.getElementById('stickerPicker');
+  if(picker&&picker.classList.contains('open')&&!picker.contains(e.target)&&!e.target.closest('.attach-btn')){
+    picker.classList.remove('open');
+  }
+});
+
+// ── Banner ────────────────────────────────────────────────
+let currentBannerUrl = null;
+
+async function uploadBanner(input){
+  const file=input.files[0];if(!file)return;
+  const fd=new FormData();fd.append('file',file);fd.append('type','banner');fd.append('username',currentUser);
+  const r=await fetch('/upload',{method:'POST',body:fd});
+  const d=await r.json();
+  currentBannerUrl=d.url;
+  // Show in modal
+  const wrap=document.getElementById('myBannerWrap');
+  wrap.innerHTML=`<img class="profile-banner-img" src="${d.url}"><div class="profile-banner-overlay">🖼 Сменить фон</div>`;
+  wrap.onclick=()=>document.getElementById('bannerInput').click();
+  // Save to server profile
+  await fetch('/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:currentUser,password:authCreds.password,bannerUrl:d.url})});
+  input.value='';
+}
 
 // ── Favorites (self-chat) ─────────────────────────────────
 const FAV_ID = '__favorites__';
